@@ -91,4 +91,27 @@ describe('BeadsDbQueue', () => {
     })
     expect(runs).toBe(2)
   })
+
+  it('does not share reads when (key, shareKey) pairs differ, even if concatenation would collide', async () => {
+    const queue = new BeadsDbQueue()
+    const taskRuns: string[] = []
+    const gate1 = deferred<string>()
+    const gate2 = deferred<string>()
+    // These would collide with string concatenation: 'a' + '\n' + 'b\nc' = 'a\nb\nc' = 'a\nb' + '\n' + 'c'
+    const first = queue.runShared('a', 'b\nc', async () => {
+      taskRuns.push('first')
+      return gate1.promise
+    })
+    const second = queue.runShared('a\nb', 'c', async () => {
+      taskRuns.push('second')
+      return gate2.promise
+    })
+    // Different promises, so they should be independent
+    expect(first).not.toBe(second)
+    gate1.resolve('result1')
+    gate2.resolve('result2')
+    expect(await first).toBe('result1')
+    expect(await second).toBe('result2')
+    expect(taskRuns).toEqual(['first', 'second'])
+  })
 })
