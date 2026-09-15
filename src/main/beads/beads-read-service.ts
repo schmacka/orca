@@ -106,6 +106,25 @@ export async function getBeadsSchema(target: BeadsExecutionTarget): Promise<Bead
   return schema
 }
 
+const LIST_VIEWS = new Set(['list', 'ready', 'blocked', 'search'])
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+// Why: IPC args are untyped at runtime — a malformed request must not reach bd.
+function requireValidListRequest(request: unknown): void {
+  if (!isPlainRecord(request)) {
+    throw new BeadsError('invalid-input', 'Invalid list request.')
+  }
+  if (typeof request.view !== 'string' || !LIST_VIEWS.has(request.view)) {
+    throw new BeadsError('invalid-input', `Invalid list view: ${JSON.stringify(request.view)}`)
+  }
+  if (!isPlainRecord(request.filter)) {
+    throw new BeadsError('invalid-input', 'Invalid list filter.')
+  }
+}
+
 function argsForListRequest(request: BeadsListRequest, fetchLimit: number): string[] {
   switch (request.view) {
     case 'list':
@@ -134,6 +153,7 @@ export async function listBeadsIssues(
   target: BeadsExecutionTarget,
   request: BeadsListRequest
 ): Promise<BeadsIssuePage> {
+  requireValidListRequest(request)
   const limit = requirePageLimit(request.limit)
   // Why: one extra row tells the UI to offer "Load more" instead of silently truncating.
   const args = argsForListRequest(request, limit + 1)

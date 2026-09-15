@@ -9,6 +9,7 @@ vi.mock('./beads-executor', () => ({
   runBd: runBdMock
 }))
 
+import type { BeadsListRequest } from '../../shared/beads/beads-contract'
 import { bdReply, installFakeBd } from './beads-fake-bd.test-support'
 import { resetBeadsContextCacheForTests } from './beads-context'
 import { resetBdVersionCacheForTests } from './beads-version'
@@ -128,6 +129,18 @@ describe('listBeadsIssues', () => {
     installFakeBd(runBdMock, {})
     await expect(
       listBeadsIssues(TARGET, { view: 'list', filter: {}, limit: 5000 })
+    ).rejects.toMatchObject({ kind: 'invalid-input' })
+    expect(runBdMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects a request with an unknown view before running bd', async () => {
+    installFakeBd(runBdMock, {})
+    await expect(
+      listBeadsIssues(
+        TARGET,
+        // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: exercises the runtime guard against a view value IPC could send that TypeScript's BeadsListRequest wouldn't allow.
+        { view: 'bogus', filter: {}, limit: 10 } as unknown as BeadsListRequest
+      )
     ).rejects.toMatchObject({ kind: 'invalid-input' })
     expect(runBdMock).not.toHaveBeenCalled()
   })
