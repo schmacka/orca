@@ -1,6 +1,6 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { commandExecFileAsync } from '../git/runner'
 import type { BeadsExecutionTarget } from './beads-executor'
@@ -31,33 +31,48 @@ describe.runIf(process.env.ORCA_BEADS_INTEGRATION === '1')('beads backend agains
   let target: BeadsExecutionTarget
 
   beforeAll(async () => {
-    repoDir = await mkdtemp(join(tmpdir(), 'orca-beads-itest-'))
-    emptyDir = await mkdtemp(join(tmpdir(), 'orca-beads-empty-'))
-    await exec(repoDir, 'git', ['init', '-q'])
-    await exec(repoDir, 'git', ['config', 'user.name', 'Orca Test'])
-    await exec(repoDir, 'git', ['config', 'user.email', 'test@example.com'])
-    await exec(repoDir, 'bd', [
-      'init',
-      '--prefix=itest',
-      '--non-interactive',
-      '--skip-hooks',
-      '--skip-agents',
-      '-q'
-    ])
-    await exec(repoDir, 'bd', ['create', '--json', '--title=Ambiguous a', '--id=itest-a11'])
-    await exec(repoDir, 'bd', ['create', '--json', '--title=Ambiguous b', '--id=itest-a12'])
-    target = { repoPath: repoDir, connectionId: null }
+    try {
+      repoDir = await mkdtemp(join(tmpdir(), 'orca-beads-itest-'))
+      emptyDir = await mkdtemp(join(tmpdir(), 'orca-beads-empty-'))
+      await exec(repoDir, 'git', ['init', '-q'])
+      await exec(repoDir, 'git', ['config', 'user.name', 'Orca Test'])
+      await exec(repoDir, 'git', ['config', 'user.email', 'test@example.com'])
+      await exec(repoDir, 'bd', [
+        'init',
+        '--prefix=itest',
+        '--non-interactive',
+        '--skip-hooks',
+        '--skip-agents',
+        '-q'
+      ])
+      await exec(repoDir, 'bd', ['create', '--json', '--title=Ambiguous a', '--id=itest-a11'])
+      await exec(repoDir, 'bd', ['create', '--json', '--title=Ambiguous b', '--id=itest-a12'])
+      target = { repoPath: repoDir, connectionId: null }
+    } catch (error) {
+      // Why: a partial failure here must not leak temp dirs that afterAll never runs for.
+      if (repoDir) {
+        await rm(repoDir, { recursive: true, force: true })
+      }
+      if (emptyDir) {
+        await rm(emptyDir, { recursive: true, force: true })
+      }
+      throw error
+    }
   }, 60_000)
 
   afterAll(async () => {
-    await rm(repoDir, { recursive: true, force: true })
-    await rm(emptyDir, { recursive: true, force: true })
+    if (repoDir) {
+      await rm(repoDir, { recursive: true, force: true })
+    }
+    if (emptyDir) {
+      await rm(emptyDir, { recursive: true, force: true })
+    }
   })
 
   it('reports workspace status and schema', async () => {
     const status = await getBeadsWorkspaceStatus(target)
     expect(status).toMatchObject({ initialized: true, versionSupported: true })
-    expect(status.beadsDir).toContain(repoDir.split('/').pop())
+    expect(status.beadsDir).toContain(basename(repoDir))
     const schema = await getBeadsSchema(target)
     expect(schema.statuses.find((entry) => entry.name === 'closed')?.category).toBe('done')
     const empty = await getBeadsWorkspaceStatus({ repoPath: emptyDir, connectionId: null })
