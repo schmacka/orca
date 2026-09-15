@@ -24,7 +24,9 @@
 - Lint rules that bite new files: `.ts` max 300 lines (tests 800), no `helpers/utils/common/misc` names, `type` not `interface`, `import type` for types, braces on every `if`, exhaustive `switch` without `default`, no `// @ts-nocheck`. Any `as` assertion needs `// oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: <reason>`.
 - Mobile RPC allowlist is **not** extended (Jira precedent).
 - Files ported from PR #14013 get this commit trailer in addition to Claude's: `Co-authored-by: ajchemist <1694505+aJchemist@users.noreply.github.com>`.
-- Every commit ends with `Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>`.
+- Commit trailers: use the attribution lines the executing session is given (at the time of writing: `Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>` plus `Claude-Session: https://claude.ai/code/session_016WpdEv8mKGKnbFSPk884i5`). Commit messages below show only the first line for brevity.
+- Import a type and values from the same module in **one** statement with inline `type` (`import { runBd, type BeadsExecutionTarget } from './beads-executor'`); `import/no-duplicates` is denied in `audit:code-quality:native`.
+- Every `as` in a new or changed file needs the `oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: …` line directly above it (`check:code-quality:changed` runs `assertionStyle: never`), tests included. Do not assert a local you just built (`const x = {…}; x as unknown as T`) — `anti-slop/no-widen-then-assert` flags it; assert on the literal itself.
 
 ## Deviations from the spec (found while planning, against real bd 1.2.2)
 
@@ -1691,7 +1693,7 @@ export class BeadsDbQueue {
     const id = `${key}\n${shareKey}`
     const existing = this.shared.get(id)
     if (existing) {
-      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: entries under this id are only created below by runShared<T> with the same shareKey, and a shareKey is the exact bd argv, which fixes the result type.
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: entries under this id are only created below by runShared<T> with the same shareKey, and callers pass the JSON-encoded bd argv as shareKey, which fixes the result type.
       return existing as Promise<T>
     }
     const result = this.run(key, task)
@@ -1915,8 +1917,7 @@ Expected: FAIL — modules not found.
 `src/main/beads/beads-version.ts`:
 ```ts
 import { BeadsError } from './beads-error'
-import { BD_READ_TIMEOUT_MS, beadsHostKey, runBd } from './beads-executor'
-import type { BeadsExecutionTarget } from './beads-executor'
+import { BD_READ_TIMEOUT_MS, beadsHostKey, runBd, type BeadsExecutionTarget } from './beads-executor'
 
 // Why 1.2.0: Orca relies on `ready --limit`, `vc status --json` and `context --json`.
 export const BD_MIN_VERSION: readonly [number, number, number] = [1, 2, 0]
@@ -2026,8 +2027,7 @@ Note on the test "throws typed errors": the `bd-missing` probe result (`spawnFai
 import { readOptionalString } from '../../shared/beads/beads-json-value'
 import { parseBdJsonRecord } from './bd-json'
 import { BeadsError, classifyBdFailure } from './beads-error'
-import { BD_READ_TIMEOUT_MS, beadsHostKey, runBd } from './beads-executor'
-import type { BeadsExecutionTarget } from './beads-executor'
+import { BD_READ_TIMEOUT_MS, beadsHostKey, runBd, type BeadsExecutionTarget } from './beads-executor'
 
 const CONTEXT_CACHE_TTL_MS = 5 * 60 * 1000
 
@@ -2113,7 +2113,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 **Interfaces:**
 - Consumes: `BeadsListFilter`, `BeadsCreateInput`, `BeadsIssuePatch`, `BEADS_LIST_MAX_LIMIT` (Task 1); `isBeadsIssueId` (Task 1); `BeadsError` (Task 4).
 - Produces:
-  - validation: `requireIssueId(id: string): string`, `requireToken(value: string, field: string): string`, `requireSingleLine(value: string, field: string): string`, `requireText(value: string, field: string): string`, `requireLabel(label: string): string`, `requirePriority(priority: number): number`, `requireFetchLimit(limit: number): number`, `requirePageLimit(limit: number): number`
+  - validation: `requireStringList(value: unknown, field: string): string[]`, `requireIssueId(id: string): string`, `requireToken(value: string, field: string): string`, `requireSingleLine(value: string, field: string): string`, `requireText(value: string, field: string): string`, `requireLabel(label: string): string`, `requirePriority(priority: number): number`, `requireFetchLimit(limit: number): number`, `requirePageLimit(limit: number): number`
   - reads: `buildListArgs(filter, limit)`, `buildReadyArgs(filter, limit)`, `buildBlockedArgs(filter)`, `buildSearchArgs(text, filter, limit)`, `buildCountArgs(filter)`, `buildShowArgs(id)`, `VC_STATUS_ARGS`, `STATUSES_ARGS`, `TYPES_ARGS` — all return `string[]` / `readonly string[]`
   - writes: `buildCreateArgs(input, actor)`, `buildUpdateArgs(id, patch, actor)`, `buildClaimArgs(id, actor)`, `buildCloseArgs(id, reason, actor)`, `buildReopenArgs(id, reason, actor)`, `buildDeferArgs(id, until, actor)`, `buildUndeferArgs(id, actor)`, `buildDeleteArgs(id, actor)`, `buildCommentArgs(id, text, actor)` — `actor: string | null`, `reason`/`until` for reopen/defer are `string | null`
 
@@ -2237,6 +2237,8 @@ describe('read argv builders', () => {
     expect(() => buildListArgs({ assignee: 'a\nb' }, 10)).toThrow(/assignee/)
     expect(() => buildSearchArgs('  ', {}, 10)).toThrow(/search text/)
     expect(() => buildSearchArgs('x', { parent: 'e-1' }, 10)).toThrow(/search cannot filter by parent/)
+    expect(() => buildListArgs(JSON.parse('{"labels":"ui"}'), 10)).toThrow(/labels must be a list/)
+    expect(() => buildListArgs(JSON.parse('{"statuses":"open"}'), 10)).toThrow(/statuses must be a list/)
   })
 })
 ```
@@ -2414,6 +2416,18 @@ export function requireLabel(label: string): string {
   return label
 }
 
+// Why: IPC args come from the renderer untyped at runtime; a string where a list is
+// expected would otherwise be iterated character by character into flags.
+export function requireStringList(value: unknown, field: string): string[] {
+  if (value === undefined) {
+    return []
+  }
+  if (!Array.isArray(value) || value.some((entry) => typeof entry !== 'string')) {
+    throw invalidInput(`The ${field} must be a list of strings.`)
+  }
+  return value
+}
+
 export function requirePriority(priority: number): number {
   if (!Number.isInteger(priority) || priority < 0 || priority > 4) {
     throw invalidInput('Priority must be an integer from 0 to 4.')
@@ -2449,6 +2463,7 @@ import {
   requireLabel,
   requirePriority,
   requireSingleLine,
+  requireStringList,
   requireToken
 } from './beads-arg-validation'
 
@@ -2461,7 +2476,7 @@ function typeAndLabelFlags(filter: BeadsListFilter): string[] {
   if (filter.type) {
     flags.push(`--type=${requireToken(filter.type, 'type')}`)
   }
-  for (const label of filter.labels ?? []) {
+  for (const label of requireStringList(filter.labels, 'labels')) {
     flags.push(`--label=${requireLabel(label)}`)
   }
   return flags
@@ -2472,7 +2487,7 @@ function assigneeFlags(filter: BeadsListFilter): string[] {
 }
 
 function statusTokens(filter: BeadsListFilter): string[] {
-  return (filter.statuses ?? []).map((status) => requireToken(status, 'status'))
+  return requireStringList(filter.statuses, 'statuses').map((status) => requireToken(status, 'status'))
 }
 
 function singleStatus(filter: BeadsListFilter, command: string): string | null {
@@ -2593,6 +2608,7 @@ import {
   requireLabel,
   requirePriority,
   requireSingleLine,
+  requireStringList,
   requireText,
   requireToken
 } from './beads-arg-validation'
@@ -2646,7 +2662,7 @@ export function buildCreateArgs(input: BeadsCreateInput, actor: string | null): 
   if (input.assignee) {
     args.push(`--assignee=${requireSingleLine(input.assignee, 'assignee')}`)
   }
-  for (const label of input.labels ?? []) {
+  for (const label of requireStringList(input.labels, 'labels')) {
     args.push(`--labels=${requireLabel(label)}`)
   }
   args.push(...textFlags(input), ...actorFlags(actor))
@@ -2674,10 +2690,10 @@ export function buildUpdateArgs(id: string, patch: BeadsIssuePatch, actor: strin
   if (patch.parent !== undefined) {
     args.push(`--parent=${requireIssueId(patch.parent)}`)
   }
-  for (const label of patch.addLabels ?? []) {
+  for (const label of requireStringList(patch.addLabels, 'labels to add')) {
     args.push(`--add-label=${requireLabel(label)}`)
   }
-  for (const label of patch.removeLabels ?? []) {
+  for (const label of requireStringList(patch.removeLabels, 'labels to remove')) {
     args.push(`--remove-label=${requireLabel(label)}`)
   }
   args.push(...textFlags(patch))
@@ -2998,8 +3014,13 @@ Expected: FAIL — `./beads-read-service` not found.
 import { classifyBdFailure } from './beads-error'
 import { resolveBeadsContext } from './beads-context'
 import { BeadsDbQueue } from './beads-db-queue'
-import { BD_READ_TIMEOUT_MS, BD_WRITE_TIMEOUT_MS, beadsHostKey, runBd } from './beads-executor'
-import type { BeadsExecutionTarget } from './beads-executor'
+import {
+  BD_READ_TIMEOUT_MS,
+  BD_WRITE_TIMEOUT_MS,
+  beadsHostKey,
+  runBd,
+  type BeadsExecutionTarget
+} from './beads-executor'
 import { requireSupportedBd } from './beads-version'
 
 const queue = new BeadsDbQueue()
@@ -3026,7 +3047,7 @@ export async function invokeBd(
   }
   // Why: identical reads from several panes share one bd process; writes never coalesce.
   return mode === 'read'
-    ? queue.runShared(scope, args.join(' '), execute)
+    ? queue.runShared(scope, JSON.stringify(args), execute)
     : queue.run(scope, execute)
 }
 ```
@@ -3537,8 +3558,11 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```ts
 import { describe, expect, it } from 'vitest'
 import type { Repo } from '../../shared/repo-types'
-import { beadsTargetForRepo, findRegisteredBeadsRepo } from './beads-repo-target'
-import type { BeadsRepoRegistry } from './beads-repo-target'
+import {
+  beadsTargetForRepo,
+  findRegisteredBeadsRepo,
+  type BeadsRepoRegistry
+} from './beads-repo-target'
 
 function repo(id: string, path: string, connectionId: string | null = null): Repo {
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: tests only read id, path and connectionId; the remaining Repo fields are irrelevant to target resolution.
@@ -3553,15 +3577,17 @@ function registry(repos: Repo[]): BeadsRepoRegistry {
 }
 
 describe('findRegisteredBeadsRepo', () => {
-  it('finds a registered repo by id when the path matches, otherwise by path', () => {
+  it('finds a registered repo by id when the path matches, or by path without an id', () => {
     const repos = [repo('r1', '/work/a'), repo('r2', '/work/b', 'ssh-1')]
     expect(findRegisteredBeadsRepo(registry(repos), '/work/b', 'r2').id).toBe('r2')
     expect(findRegisteredBeadsRepo(registry(repos), '/work/a/', null).id).toBe('r1')
   })
 
-  it('does not trust an id whose repo lives at a different path', () => {
+  it('refuses an id whose repo lives at a different path instead of guessing', () => {
     const repos = [repo('r1', '/work/a'), repo('r2', '/work/b')]
-    expect(findRegisteredBeadsRepo(registry(repos), '/work/b', 'r1').id).toBe('r2')
+    expect(() => findRegisteredBeadsRepo(registry(repos), '/work/b', 'r1')).toThrow(
+      /Access denied/
+    )
   })
 
   it('refuses unregistered paths', () => {
@@ -3612,12 +3638,12 @@ export function findRegisteredBeadsRepo(
 ): Repo {
   const resolvedPath = resolve(repoPath)
   const id = repoId?.trim()
-  const byId = id ? registry.getRepo(id) : undefined
-  const repo =
-    byId && resolve(byId.path) === resolvedPath
-      ? byId
-      : registry.getRepos().find((candidate) => resolve(candidate.path) === resolvedPath)
-  if (!repo) {
+  // Why: an id pins the host. Falling back to a path search could pick a same-path
+  // repo on another host (an SSH /srv/repo and a local C:\srv\repo resolve alike).
+  const repo = id
+    ? registry.getRepo(id)
+    : registry.getRepos().find((candidate) => resolve(candidate.path) === resolvedPath)
+  if (!repo || resolve(repo.path) !== resolvedPath) {
     throw new BeadsError('invalid-input', 'Access denied: unknown repository path')
   }
   return repo
@@ -3855,7 +3881,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 - Create: `src/main/runtime/runtime-beads-command-surface.ts`
 - Test: `src/main/runtime/runtime-beads-commands.test.ts`
 - Modify: `src/main/runtime/orca-runtime-file-commands.ts` (add a field after `gitLabQueryCommands`, ~line 160–175; file is `@ts-nocheck`, keep it that way, do not add `@ts-nocheck` elsewhere)
-- Modify: `src/main/runtime/orca-runtime-state-fields.ts` (import beside `installRuntimeReviewCommandSurface` ~line 23; call after the `installRuntimeReviewCommandSurface(runtime, {...})` block ~line 121–128)
+- Modify: `src/main/runtime/orca-runtime-state-fields.ts` (also `@ts-nocheck` at line 1 — leave it; import beside `installRuntimeReviewCommandSurface` ~line 23; call after the `installRuntimeReviewCommandSurface(runtime, {...})` block ~line 121–128)
 - Modify: `src/main/runtime/orca-runtime-core.ts` (import beside `RuntimeReviewCommandSurface` ~line 17; add to `RuntimeInstalledCommandSurfaces` ~line 341–348)
 
 **Interfaces:**
@@ -3897,8 +3923,10 @@ vi.mock('../beads/beads-write-service', () => ({
 
 import { BeadsError } from '../beads/beads-error'
 import { RuntimeBeadsCommands } from './runtime-beads-commands'
-import { installRuntimeBeadsCommandSurface } from './runtime-beads-command-surface'
-import type { RuntimeBeadsCommandSurface } from './runtime-beads-command-surface'
+import {
+  installRuntimeBeadsCommandSurface,
+  type RuntimeBeadsCommandSurface
+} from './runtime-beads-command-surface'
 
 // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the commands only read id, path and connectionId from the resolved repo.
 const REPO = { id: 'r1', path: '/srv/repo', connectionId: null } as Repo
@@ -3944,6 +3972,7 @@ describe('RuntimeBeadsCommands', () => {
     installRuntimeBeadsCommandSurface(surface as RuntimeBeadsCommandSurface, commands)
     for (const name of Object.getOwnPropertyNames(RuntimeBeadsCommands.prototype)) {
       if (name.startsWith('beads')) {
+        // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: names are filtered to own beads* prototype methods, which the surface installs one-to-one.
         expect(typeof surface[name as keyof RuntimeBeadsCommandSurface]).toBe('function')
       }
     }
@@ -3951,7 +3980,6 @@ describe('RuntimeBeadsCommands', () => {
 })
 ```
 
-The last `name as keyof …` cast is covered by the SAFETY comment's loop contract; if the SAFETY lint flags it, add the same `oxlint-disable-next-line … -- SAFETY: names are filtered to own beads* prototype methods` line above it.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -4215,17 +4243,21 @@ function makeRequest(method: string, params?: unknown): RpcRequest {
 describe('beads RPC methods', () => {
   it('routes beads methods to the runtime with parsed params', async () => {
     const ok = { ok: true, value: null }
-    const runtime = {
-      getRuntimeId: () => 'test-runtime',
-      beadsGetStatus: vi.fn().mockResolvedValue(ok),
-      beadsListIssues: vi.fn().mockResolvedValue(ok),
-      beadsClaimIssue: vi.fn().mockResolvedValue(ok),
-      beadsCloseIssue: vi.fn().mockResolvedValue(ok),
-      beadsAddComment: vi.fn().mockResolvedValue(ok)
-    }
+    const beadsGetStatus = vi.fn().mockResolvedValue(ok)
+    const beadsListIssues = vi.fn().mockResolvedValue(ok)
+    const beadsClaimIssue = vi.fn().mockResolvedValue(ok)
+    const beadsCloseIssue = vi.fn().mockResolvedValue(ok)
+    const beadsAddComment = vi.fn().mockResolvedValue(ok)
     const dispatcher = new RpcDispatcher({
       // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the dispatcher only calls the stubbed beads methods exercised below.
-      runtime: runtime as unknown as OrcaRuntimeService,
+      runtime: {
+        getRuntimeId: () => 'test-runtime',
+        beadsGetStatus,
+        beadsListIssues,
+        beadsClaimIssue,
+        beadsCloseIssue,
+        beadsAddComment
+      } as unknown as OrcaRuntimeService,
       methods: BEADS_METHODS
     })
 
@@ -4244,25 +4276,25 @@ describe('beads RPC methods', () => {
       makeRequest('beads.addComment', { repo: 'id:r1', id: 'p-1', actor: null, text: '-hi' })
     )
 
-    expect(runtime.beadsGetStatus).toHaveBeenCalledWith('id:r1')
-    expect(runtime.beadsListIssues).toHaveBeenCalledWith(
+    expect(beadsGetStatus).toHaveBeenCalledWith('id:r1')
+    expect(beadsListIssues).toHaveBeenCalledWith(
       'id:r1',
       expect.objectContaining({ view: 'ready', limit: 200 })
     )
-    expect(runtime.beadsClaimIssue).toHaveBeenCalledWith('id:r1', 'p-1', 'me')
-    expect(runtime.beadsCloseIssue).toHaveBeenCalledWith('id:r1', 'p-1', 'done', null)
-    expect(runtime.beadsAddComment).toHaveBeenCalledWith('id:r1', 'p-1', '-hi', null)
+    expect(beadsClaimIssue).toHaveBeenCalledWith('id:r1', 'p-1', 'me')
+    expect(beadsCloseIssue).toHaveBeenCalledWith('id:r1', 'p-1', 'done', null)
+    expect(beadsAddComment).toHaveBeenCalledWith('id:r1', 'p-1', '-hi', null)
   })
 
   it('rejects calls without a repo selector', async () => {
-    const runtime = { getRuntimeId: () => 'test-runtime', beadsGetStatus: vi.fn() }
+    const beadsGetStatus = vi.fn()
     const dispatcher = new RpcDispatcher({
       // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: no runtime method should be reached for invalid params.
-      runtime: runtime as unknown as OrcaRuntimeService,
+      runtime: { getRuntimeId: () => 'test-runtime', beadsGetStatus } as unknown as OrcaRuntimeService,
       methods: BEADS_METHODS
     })
     await dispatcher.dispatch(makeRequest('beads.getStatus', {}))
-    expect(runtime.beadsGetStatus).not.toHaveBeenCalled()
+    expect(beadsGetStatus).not.toHaveBeenCalled()
   })
 })
 ```
@@ -4860,6 +4892,9 @@ describe.runIf(process.env.ORCA_BEADS_INTEGRATION === '1')('beads backend agains
     expect(open.issues.some((issue) => issue.id === child.issue.id)).toBe(false)
     const all = await listBeadsIssues(target, { view: 'list', filter: { includeClosed: true }, limit: 200 })
     expect(all.issues.some((issue) => issue.id === child.issue.id)).toBe(true)
+    // Why: the Closed preset sends only --status=closed; confirm bd does not also need --all.
+    const onlyClosed = await listBeadsIssues(target, { view: 'list', filter: { statuses: ['closed'] }, limit: 200 })
+    expect(onlyClosed.issues.map((issue) => issue.id)).toContain(child.issue.id)
   }, 60_000)
 
   it('classifies ambiguous and unknown ids', async () => {
@@ -4877,7 +4912,7 @@ describe.runIf(process.env.ORCA_BEADS_INTEGRATION === '1')('beads backend agains
 
 Run: `ORCA_BEADS_INTEGRATION=1 pnpm test src/main/beads/beads-bd-integration.test.ts`
 Expected: PASS (3 tests). Then run `pnpm test src/main/beads/beads-bd-integration.test.ts` without the variable and expect the suite to be skipped.
-If clearing the description fails (`description` still `'first'`, or bd rejects the empty value), check `bd update --help` for the clearing flag in the installed version, fix `textFlags` in `beads-write-args.ts` plus its unit test, and re-run.
+If the `onlyClosed` assertion fails, change `buildListArgs` to push `--all` together with an explicit `--status` that includes `closed`, update its unit test, and re-run. If clearing the description fails (`description` still `'first'`, or bd rejects the empty value), check `bd update --help` for the clearing flag in the installed version, fix `textFlags` in `beads-write-args.ts` plus its unit test, and re-run.
 
 - [ ] **Step 3: Commit**
 
@@ -5058,6 +5093,8 @@ In `docs/superpowers/specs/2026-09-15-beads-task-source-design.md`:
 - §4.3 New issue: replace "Saved as a single `batch` call" with "Saved with one `bd create` call (it accepts parent, labels and dependencies directly)."
 - §6 table: `not-initialized` detection gains "`no .beads directory found`"; `ambiguous-id` detection becomes "`ambiguous ID` on stderr (bd prints the not-found JSON for both)"; add row `invalid-input` | argv validation or unregistered repo | inline message.
 - §9: add the measured numbers link `2026-09-15-beads-performance.md`.
+- §4.2 Close…: add "bd refuses to close an issue with open blockers (`cannot close …: blocked by open issues`). The M4 plan adds `force` to close so the UI can offer 'Close anyway' (`--force`)."
+- §5 / M2 note: "IPC clients should always send `repoId`; without it the backend matches by path only." 
 
 ```bash
 git add -f docs/superpowers/specs/2026-09-15-beads-task-source-design.md

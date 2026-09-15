@@ -17,7 +17,7 @@
 - Repo: `~/Developer/orca`, branch `beads`. Never commit to `main`. Never push to `upstream` (push URL is `DISABLED`).
 - Fork identity: `appId` `dev.porcus3d.orca-beads`, `productName` `Orca Beads`.
 - Fork-only commits must touch only packaging/CI/docs files, never beads product code.
-- Commit trailer on every commit: `Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>`.
+- Commit trailers: use the attribution lines the executing session is given (at the time of writing: `Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>` plus `Claude-Session: https://claude.ai/code/session_016WpdEv8mKGKnbFSPk884i5`). The commit messages below show only the first line for brevity.
 - Orca ignores `docs/**`; docs for the fork are added with `git add -f`.
 
 ---
@@ -113,14 +113,20 @@ In `src/shared/agent-feature-install-commands.ts:3`:
 export const ORCA_SKILLS_REPOSITORY_URL = 'https://github.com/schmacka/orca'
 ```
 
+The local-build compatibility contract must carry the same bundle id (`config/scripts/mac-build-compatibility.cjs` copies it into the app and `src/main/local-builds/local-build-candidate.ts` compares it with the running app id; `config/scripts/electron-builder-config.test.mjs` asserts they match):
+- `src/shared/local-build-compatibility-contract.json`: `"appId": "com.stablyai.orca"` → `"appId": "dev.porcus3d.orca-beads"`
+- `src/main/local-builds/local-build-compatibility-contract.test.ts:14`: `appId: 'com.stablyai.orca',` → `appId: 'dev.porcus3d.orca-beads',`
+
+Known and accepted: with the `orca-beads` scheme, `orca://` deep links (skill-share links, `orca://pair`) keep opening official Orca, not the fork. Paste such links into the fork manually. Do not register `orca` for the fork — two apps claiming one scheme is the hijack this avoids.
+
 - [ ] **Step 4: Verify nothing else pinned these values**
 
 Run:
 ```bash
-pnpm test src/main/updater src/shared/agent-feature-install-commands
-rg -n "ORCA_SKILLS_REPOSITORY_URL|executableName|orca-ide" src config --glob '*.test.ts'
+pnpm test src/main/updater src/main/local-builds src/shared/agent-feature-install-commands config/scripts/electron-builder-config.test.mjs
+rg -n "ORCA_SKILLS_REPOSITORY_URL|executableName|orca-ide|com\.stablyai\.orca'" src config --glob '*.test.*'
 ```
-Expected: tests PASS. For every test that asserts the old skills URL or executable name, update the expected literal to the new value in the same commit.
+Expected: tests PASS. For every remaining test that asserts the old skills URL, executable name or the packaged app id **as the value this build produces**, update the literal in the same commit. Leave tests that use `com.stablyai.orca` as an example of *another* app (for example macOS TCC or press-and-hold fixtures) unchanged.
 
 - [ ] **Step 5: Build an unpacked app and check side-by-side identity**
 
@@ -136,8 +142,9 @@ Then open it (`open "<path>/Orca Beads.app"`), confirm it starts, and confirm `~
 - [ ] **Step 6: Commit (fork-only)**
 
 ```bash
-git add src/main/updater/fork-update-policy.ts src/main/updater/updater-setup.ts config/electron-builder.config.cjs src/shared/agent-feature-install-commands.ts
-git add -u src   # only test literal updates from Step 4, if any
+git add src/main/updater/fork-update-policy.ts src/main/updater/updater-setup.ts config/electron-builder.config.cjs src/shared/agent-feature-install-commands.ts src/shared/local-build-compatibility-contract.json src/main/local-builds/local-build-compatibility-contract.test.ts
+git status --short   # confirm only packaging files and Step 4 test-literal updates are staged or modified
+git add -u src config   # only test literal updates from Step 4, if any
 git commit -m "chore(fork): package as Orca Beads and disable upstream auto-update
 
 Fork-only: drop from any upstream PR.
