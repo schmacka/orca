@@ -34,8 +34,7 @@ export function normalizeBeadsContext(raw: Record<string, unknown>): BeadsRepoCo
   }
 }
 
-// Why: Orca worktrees share the main checkout's database. Keying queues and caches
-// by beads_dir (not by worktree path) makes every worktree see the same data.
+// Why: cached per host+repo path; every Orca worktree resolves to the shared beads_dir that queues and caches key on.
 export async function resolveBeadsContext(target: BeadsExecutionTarget): Promise<BeadsRepoContext> {
   const key = `${beadsHostKey(target)}\n${target.repoPath}`
   const cached = contextCache.get(key)

@@ -65,4 +65,19 @@ describe('resolveBeadsContext', () => {
     await expect(resolveBeadsContext(TARGET)).rejects.toMatchObject({ kind: 'failed' })
     await expect(resolveBeadsContext(TARGET)).resolves.toMatchObject({ isWorktree: true })
   })
+
+  it('allows multiple worktrees to independently resolve to the same beads_dir', async () => {
+    runBdMock.mockResolvedValue(reply(JSON.stringify(WORKTREE_CONTEXT), 0))
+    const worktree1 = { repoPath: '/repo-worktree-1', connectionId: null }
+    const worktree2 = { repoPath: '/repo-worktree-2', connectionId: null }
+    const [context1, context2] = await Promise.all([
+      resolveBeadsContext(worktree1),
+      resolveBeadsContext(worktree2)
+    ])
+    expect(context1.beadsDir).toBe('/Users/me/Developer/baumoscan/.beads')
+    expect(context2.beadsDir).toBe('/Users/me/Developer/baumoscan/.beads')
+    expect(runBdMock).toHaveBeenCalledTimes(2)
+    expect(runBdMock).toHaveBeenNthCalledWith(1, worktree1, ['context', '--json'], 15_000)
+    expect(runBdMock).toHaveBeenNthCalledWith(2, worktree2, ['context', '--json'], 15_000)
+  })
 })
