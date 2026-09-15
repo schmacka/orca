@@ -1,0 +1,108 @@
+<h2>Issue detail — where does it open?</h2>
+<p class="subtitle">List = tree (flat / board as toggles) ✓. Now: clicking <code>baumoscan-cwf.3</code>. Content is the same in all options: actions, fields, the four bd text sections, relations with a "why blocked" callout, comments.</p>
+
+<style>
+  .bx { font: 12px/1.35 -apple-system, system-ui, sans-serif; }
+  .bx .row { display:flex; gap:6px; align-items:center; padding:3px 5px; border-bottom:1px solid #8882; white-space:nowrap; overflow:hidden }
+  .bx .sel { background:#6a5cff22 }
+  .bx .id { font-family:ui-monospace,monospace; opacity:.65 }
+  .bx .chip { font-size:10px; padding:0 5px; border-radius:8px; background:#8882; white-space:nowrap }
+  .bx .blk { background:#e5484d22; color:#e5484d }
+  .bx .btn { font-size:10px; border:1px solid #8886; border-radius:4px; padding:1px 6px; white-space:nowrap }
+  .bx .pri { border-color:#6a5cff; background:#6a5cff; color:#fff }
+  .bx .why { border-left:3px solid #e5484d; background:#e5484d14; padding:4px 6px; margin:6px 0; border-radius:3px }
+  .bx h6 { margin:8px 0 2px; font-size:10px; text-transform:uppercase; opacity:.6 }
+  .bx .muted { opacity:.6 }
+  .bx .pane { border:1px solid #8883; border-radius:6px; padding:6px; overflow:hidden }
+  .bx .acts { display:flex; gap:4px; flex-wrap:wrap; margin:4px 0 }
+  .bx .graph { display:flex; align-items:center; gap:4px; font-size:10px; margin:4px 0 }
+  .bx .node { border:1px solid #8886; border-radius:4px; padding:1px 4px }
+  .bx .node.me { border-color:#6a5cff; }
+</style>
+
+<div class="options">
+  <div class="option" data-choice="drawer" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Drawer over the tree</h3>
+      <p>Slides in from the right (like Orca's Linear drawer). Tree stays visible behind; Esc closes. Quick peek, narrow for long design docs.</p>
+      <div class="mockup"><div class="mockup-body bx" style="display:grid;grid-template-columns:1fr 1.25fr;gap:6px">
+        <div class="pane muted">
+          <div class="row"><b>▾ cwf</b> Story evaluation kit</div>
+          <div class="row">&nbsp;&nbsp;cwf.1 Decide: store line…</div>
+          <div class="row sel">&nbsp;&nbsp;cwf.3 Run the playtest…</div>
+          <div class="row">&nbsp;&nbsp;cwf.5 Language-aware kit</div>
+          <div class="row"><b>▸ 3kw</b> App Store 1.18.0</div>
+        </div>
+        <div class="pane" style="box-shadow:-6px 0 12px #0003">
+          <div><span class="id">baumoscan-cwf.3</span> <span class="chip">task</span> <span class="chip">P2</span> <span class="chip">open</span></div>
+          <b>Run the playtest with 5-8 children (phase 3)</b>
+          <div class="acts"><span class="btn pri">▶ Start worktree</span><span class="btn">Claim</span><span class="btn">Status ▾</span><span class="btn">Close…</span><span class="btn">⋯</span></div>
+          <div class="why">⛔ Blocked by <b>cwf.1</b> "Decide: store line…" (open, unassigned) <span class="btn">Open</span></div>
+          <h6>Description</h6><div class="muted">Recruit 5-8 families per protocol…</div>
+          <h6>Acceptance</h6><div class="muted">Session notes recorded…</div>
+          <h6>Relations</h6><div>⬆ cwf · ⛔ cwf.1 · ⬇ blocks cwf.4</div>
+          <h6>Comments (0)</h6>
+        </div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="split" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Persistent split pane (list | detail)</h3>
+      <p>Mail-client style: tree left, detail right, arrow keys move through issues. Best for triage sessions; needs a wide window (collapses to drawer when narrow).</p>
+      <div class="mockup"><div class="mockup-body bx" style="display:grid;grid-template-columns:1fr 1.4fr;gap:6px">
+        <div class="pane">
+          <div class="row"><b>▾ cwf</b> Story evaluation kit <span class="chip">1/6</span></div>
+          <div class="row">&nbsp;&nbsp;cwf.1 Decide: store line…</div>
+          <div class="row sel">&nbsp;&nbsp;cwf.3 Run the playtest… <span class="chip blk">⛔</span></div>
+          <div class="row">&nbsp;&nbsp;cwf.5 Language-aware kit</div>
+          <div class="row">&nbsp;&nbsp;cwf.4 Finalise report <span class="chip blk">⛔</span></div>
+          <div class="row"><b>▸ 3kw</b> App Store 1.18.0 <span class="chip">0/6</span></div>
+          <div class="row">p9q Device QA packs 2-5</div>
+        </div>
+        <div class="pane">
+          <div><span class="id">baumoscan-cwf.3</span> <span class="chip">task</span> <span class="chip">P2</span> <span class="chip">open</span> <span class="chip">label: evaluation</span></div>
+          <b>Run the playtest with 5-8 children (phase 3)</b>
+          <div class="acts"><span class="btn pri">▶ Start worktree</span><span class="btn">Claim</span><span class="btn">Status ▾</span><span class="btn">Priority ▾</span><span class="btn">Close…</span><span class="btn">⋯</span></div>
+          <div class="why">⛔ Blocked by <b>cwf.1</b> "Decide: store line…" (open, unassigned) <span class="btn">Open</span> <span class="btn">Start blocker</span></div>
+          <div class="graph"><span class="node">cwf.1</span>→<span class="node me">cwf.3</span>→<span class="node">cwf.4</span> <span class="muted">(mini dep graph)</span></div>
+          <h6>Description</h6><div class="muted">Recruit 5-8 families per protocol…</div>
+          <h6>Design · Acceptance · Notes</h6><div class="muted">collapsible sections</div>
+          <h6>Comments (0)</h6><div class="muted">[ add comment… ]</div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="page" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Full issue page</h3>
+      <p>Replaces the list (like Orca's Jira issue workspace), back button returns. Most room for design docs and graph; loses list context.</p>
+      <div class="mockup"><div class="mockup-body bx">
+        <div class="pane">
+          <div><span class="btn">← Ready (18)</span> <span class="id">baumoscan › cwf › cwf.3</span></div>
+          <div style="display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-top:4px">
+            <div>
+              <b>Run the playtest with 5-8 children (phase 3)</b>
+              <div class="why">⛔ Blocked by <b>cwf.1</b> — open, unassigned <span class="btn">Start blocker</span></div>
+              <h6>Description</h6><div class="muted">Recruit 5-8 families per protocol…</div>
+              <h6>Design</h6><div class="muted">…</div><h6>Acceptance</h6><div class="muted">…</div>
+              <h6>Comments</h6><div class="muted">[ add comment… ]</div>
+            </div>
+            <div>
+              <div class="acts"><span class="btn pri">▶ Start worktree</span><span class="btn">Claim</span><span class="btn">Close…</span></div>
+              <h6>Fields</h6><div>status · P2 · task · assignee · labels</div>
+              <h6>Dependency graph</h6>
+              <div class="graph" style="flex-direction:column;align-items:flex-start"><span class="node">cwf (epic)</span><span class="node">cwf.1</span><span class="node me">cwf.3</span><span class="node">cwf.4</span></div>
+              <h6>Worktrees</h6><div class="muted">none yet</div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</div>

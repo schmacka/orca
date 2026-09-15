@@ -1,0 +1,81 @@
+<h2>Beads task page — how should the issue list look?</h2>
+<p class="subtitle">Same data (baumoscan, real beads). All three share the top bar: Orca source tabs + beads view presets + filters. Pick the main list shape; the others can become secondary toggles.</p>
+
+<style>
+  .bx { font: 12px/1.35 -apple-system, system-ui, sans-serif; }
+  .bx .bar { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
+  .bx .tab { padding:2px 8px; border-radius:10px; border:1px solid #8884; opacity:.7 }
+  .bx .tab.on { opacity:1; background:#6a5cff22; border-color:#6a5cff; }
+  .bx .src { font-weight:600; margin-right:6px }
+  .bx .row { display:flex; gap:8px; align-items:center; padding:4px 6px; border-bottom:1px solid #8882; }
+  .bx .id { font-family:ui-monospace,monospace; opacity:.65; min-width:112px }
+  .bx .p { font-size:10px; padding:0 4px; border-radius:3px; background:#e5484d33 }
+  .bx .p2 { background:#f5a52433 } .bx .p3 { background:#8883 }
+  .bx .st { width:8px; height:8px; border-radius:50%; border:2px solid #888; flex:none }
+  .bx .st.ip { border-color:#f5a524; background:#f5a524 }
+  .bx .st.bl { border-color:#e5484d }
+  .bx .chip { font-size:10px; padding:0 5px; border-radius:8px; background:#8882; white-space:nowrap }
+  .bx .blk { background:#e5484d22; color:#e5484d }
+  .bx .t { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .bx .go { font-size:10px; border:1px solid #6a5cff; color:#6a5cff; border-radius:4px; padding:0 5px }
+  .bx .ind { padding-left:22px }
+  .bx .epic { font-weight:600 }
+  .bx .cols { display:grid; grid-template-columns:repeat(4,1fr); gap:6px }
+  .bx .col { background:#8881; border-radius:6px; padding:5px }
+  .bx .col h5 { margin:0 0 5px; font-size:11px; opacity:.7 }
+  .bx .card { background:#8882; border-radius:5px; padding:5px; margin-bottom:5px }
+</style>
+
+<div class="options">
+  <div class="option" data-choice="flat" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Flat list with dependency chips</h3>
+      <p>Like Orca's Jira/Linear list. Blocked-by and parent shown as chips; epics filterable. Densest, most familiar.</p>
+      <div class="mockup"><div class="mockup-body bx">
+        <div class="bar"><span class="src">GitHub · Linear · Jira · <b>Beads</b></span></div>
+        <div class="bar"><span class="tab on">Ready 18</span><span class="tab">In progress 0</span><span class="tab">Blocked 5</span><span class="tab">All open 23</span><span class="tab">Closed</span><span class="chip">type ▾</span><span class="chip">label ▾</span><span class="chip">epic ▾</span><span class="chip">P ▾</span></div>
+        <div class="row"><span class="st"></span><span class="p">P1</span><span class="id">baumoscan-cwf.1</span><span class="t">Decide: does a store line citing playtest results count as publication?</span><span class="chip">⬆ cwf</span><span class="go">▶ Start</span></div>
+        <div class="row"><span class="st"></span><span class="p p2">P2</span><span class="id">baumoscan-p9q</span><span class="t">Device QA: level packs 2-5 feel check</span><span class="go">▶ Start</span></div>
+        <div class="row"><span class="st"></span><span class="p p2">P2</span><span class="id">baumoscan-cwf.5</span><span class="t">Make the evaluation kit language-aware</span><span class="chip">⬆ cwf</span><span class="go">▶ Start</span></div>
+        <div class="row"><span class="st bl"></span><span class="p p2">P2</span><span class="id">baumoscan-cwf.3</span><span class="t">Run the playtest with 5-8 children</span><span class="chip blk">⛔ cwf.1</span><span class="chip">⬆ cwf</span></div>
+        <div class="row"><span class="st"></span><span class="p p3">P3</span><span class="id">baumoscan-0tt</span><span class="t">Capture flow copy says 'hero' even when scanning an item</span><span class="go">▶ Start</span></div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="tree" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Tree: epics → children, blockers inline</h3>
+      <p>Hierarchy is the primary shape; epics collapse with progress. Shows beads' structure best; less dense, sorting is per-level.</p>
+      <div class="mockup"><div class="mockup-body bx">
+        <div class="bar"><span class="src">GitHub · Linear · Jira · <b>Beads</b></span></div>
+        <div class="bar"><span class="tab on">Ready 18</span><span class="tab">In progress 0</span><span class="tab">Blocked 5</span><span class="tab">All open 23</span><span class="chip">☰ flat</span><span class="chip on">🌲 tree</span></div>
+        <div class="row epic"><span>▾</span><span class="id">baumoscan-cwf</span><span class="t">Story evaluation kit: phases 2-4</span><span class="chip">1/6 done</span></div>
+        <div class="row ind"><span class="st"></span><span class="p">P1</span><span class="id">cwf.1</span><span class="t">Decide: store line citing playtest = publication?</span><span class="go">▶ Start</span></div>
+        <div class="row ind"><span class="st"></span><span class="p p2">P2</span><span class="id">cwf.5</span><span class="t">Make the evaluation kit language-aware</span><span class="go">▶ Start</span></div>
+        <div class="row ind"><span class="st bl"></span><span class="p p2">P2</span><span class="id">cwf.3</span><span class="t">Run the playtest with 5-8 children</span><span class="chip blk">⛔ waits on cwf.1</span></div>
+        <div class="row epic"><span>▸</span><span class="id">baumoscan-3kw</span><span class="t">App Store: ship 1.18.0 (six languages)</span><span class="chip">0/6 done</span></div>
+        <div class="row"><span class="st"></span><span class="p p2">P2</span><span class="id">baumoscan-p9q</span><span class="t">Device QA: level packs 2-5 feel check</span><span class="go">▶ Start</span></div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="board" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Board by status category</h3>
+      <p>Kanban columns from <code>bd statuses</code> categories; drag = <code>bd update --status</code>. Visual overview, weak for large backlogs and deps.</p>
+      <div class="mockup"><div class="mockup-body bx">
+        <div class="bar"><span class="src">GitHub · Linear · Jira · <b>Beads</b></span><span class="chip">epic: all ▾</span></div>
+        <div class="cols">
+          <div class="col"><h5>Ready · 18</h5><div class="card"><span class="p">P1</span> cwf.1<br>Decide: store line…</div><div class="card"><span class="p p2">P2</span> p9q<br>Device QA packs 2-5</div></div>
+          <div class="col"><h5>Blocked · 5</h5><div class="card"><span class="p p2">P2</span> cwf.3<br>Run the playtest<br><span class="chip blk">⛔ cwf.1</span></div></div>
+          <div class="col"><h5>In progress · 0</h5></div>
+          <div class="col"><h5>Closed · 1</h5><div class="card" style="opacity:.6">b4p<br>Record 1.18.0 release</div></div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</div>
