@@ -352,14 +352,17 @@ describe('configureDevUserDataPath', () => {
     expect(app.setPath).toHaveBeenCalledWith('userData', join('/tmp/app-data', 'orca-dev'))
   })
 
-  it('leaves packaged runs on the default userData path', async () => {
+  it('moves packaged runs onto the fork userData path (Orca Beads)', async () => {
     const { app } = await import('electron')
     const { configureDevUserDataPath } = await import('./configure-process')
 
     vi.mocked(app.setPath).mockClear()
     configureDevUserDataPath(false)
 
-    expect(app.setPath).not.toHaveBeenCalled()
+    // Why: fork-only — package.json's "name" stays "orca", so packaged runs must be
+    // pinned onto their own userData dir or they collide with an installed upstream
+    // Orca's profile and single-instance lock. See fork-app-identity.ts.
+    expect(app.setPath).toHaveBeenCalledWith('userData', join('/tmp/app-data', 'Orca Beads'))
   })
 })
 

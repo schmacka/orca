@@ -10,6 +10,7 @@ import {
   dismissAvailableUpdate,
   dismissNudge,
   downloadUpdate,
+  FORK_AUTO_UPDATE_DISABLED,
   getLinuxPackageInstallInstructions,
   getUpdateStatus,
   listAvailableReleaseBuilds,
@@ -40,6 +41,10 @@ export function scheduleMainWindowAutoUpdaterSetup(
   let updaterSetupDone = false
   const setupAutoUpdaterDeferred = (): void => {
     if (updaterSetupDone || mainWindow.isDestroyed()) {
+      return
+    }
+    // Why: fork-only — never schedule electron-updater against the stablyai/orca feed. Drop when upstreaming.
+    if (FORK_AUTO_UPDATE_DISABLED) {
       return
     }
     updaterSetupDone = true
@@ -94,6 +99,12 @@ export function registerUpdaterHandlers(_store: Store): void {
   ipcMain.handle('updater:getStatus', () => getUpdateStatus())
   ipcMain.handle('updater:getVersion', () => app.getVersion())
   ipcMain.handle('updater:check', (_event, options?: UpdateCheckOptions) => {
+    // Why: fork-only — a manual "Check for Updates" must not hit the stablyai/orca feed
+    // either; checkForUpdatesFromMenu() itself doesn't gate on setupAutoUpdater having run.
+    // Drop when upstreaming.
+    if (FORK_AUTO_UPDATE_DISABLED) {
+      return
+    }
     ensureAutoUpdaterConfigured()
     return checkForUpdatesFromMenu(options)
   })

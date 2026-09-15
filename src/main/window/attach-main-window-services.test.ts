@@ -118,7 +118,11 @@ vi.mock('../updater', () => ({
   getUpdateStatus: vi.fn(),
   quitAndInstall: vi.fn(),
   dismissNudge: vi.fn(),
-  setupAutoUpdater: setupAutoUpdaterMock
+  setupAutoUpdater: setupAutoUpdaterMock,
+  // Why: this suite exercises the real scheduling/DI plumbing in main-window-updater.ts,
+  // which is gated by the fork's real (true) FORK_AUTO_UPDATE_DISABLED; declare it false
+  // here so scheduling proceeds and setupAutoUpdaterMock still gets asserted on.
+  FORK_AUTO_UPDATE_DISABLED: false
 }))
 
 vi.mock('../macos-tcc-prompt-notice', () => ({

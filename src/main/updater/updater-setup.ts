@@ -20,7 +20,6 @@ import { recordUpdaterLifecycle } from '../updater-lifecycle-diagnostics'
 import { AUTO_UPDATE_CHECK_INTERVAL_MS } from './updater-state'
 import { UpdaterDownloadInstall } from './updater-download-install'
 import type { UpdateInstallMode } from './updater-state'
-import { FORK_AUTO_UPDATE_DISABLED } from './fork-update-policy'
 
 export type UpdaterSetupOptions = {
   getLastUpdateCheckAt?: () => number | null
@@ -134,9 +133,6 @@ export class UpdaterSetup extends UpdaterDownloadInstall {
       return
     }
     if (is.dev) {
-      return
-    }
-    if (FORK_AUTO_UPDATE_DISABLED) {
       return
     }
 

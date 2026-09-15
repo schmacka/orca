@@ -17,6 +17,11 @@ import type { UpdateInstallMode } from './updater/updater-state'
 const updater = new UpdaterSetup()
 
 export type { UpdateInstallMode, UpdaterSetupOptions }
+// Why: fork-only — re-exported here (not consumed inside this module) so production call
+// sites already sourcing their updater dependencies from this barrel (main-window-updater.ts,
+// main-window-actions.ts) can guard scheduling/menu checks without a second import, and so
+// existing tests that mock '../updater' wholesale are unaffected unless they opt in.
+export { FORK_AUTO_UPDATE_DISABLED } from './updater/fork-update-policy'
 
 export function resolveUpdateInstallMode(isServeMode: boolean): UpdateInstallMode {
   return updater.resolveUpdateInstallMode(isServeMode)

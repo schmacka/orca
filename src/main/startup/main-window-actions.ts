@@ -2,7 +2,7 @@ import { app, clipboard, dialog, type BrowserWindow, type Tray } from 'electron'
 import type { UpdateCheckOptions } from '../../shared/update-status-types'
 import { recordCrashBreadcrumb } from '../crash-reporting/crash-breadcrumb-store'
 import { recordDurableCrashBreadcrumb } from '../crash-reporting/durable-crash-breadcrumb'
-import { checkForUpdatesFromMenu, isQuittingForUpdate } from '../updater'
+import { checkForUpdatesFromMenu, FORK_AUTO_UPDATE_DISABLED, isQuittingForUpdate } from '../updater'
 import {
   createSystemTray,
   setMacMenuBarIconVisible,
@@ -71,6 +71,11 @@ export function quitFromSystemTray(): void {
 }
 
 export function runUserInitiatedUpdateCheck(options?: UpdateCheckOptions): void {
+  // Why: fork-only — the menu/tray "Check for Updates" entry point must not hit the
+  // stablyai/orca feed either. Drop when upstreaming.
+  if (FORK_AUTO_UPDATE_DISABLED) {
+    return
+  }
   ensureAutoUpdaterConfigured()
   checkForUpdatesFromMenu(options)
 }

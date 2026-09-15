@@ -6,6 +6,7 @@ import { getVersionManagerBinPaths } from '../codex-cli/command'
 import { getMainE2EConfig } from '../e2e-config'
 import { DISABLED_CHROMIUM_FEATURES } from './disabled-chromium-features'
 import { readHttp1CompatibilityMarker } from './http1-compatibility-marker'
+import { FORK_USER_DATA_DIR_NAME } from './fork-app-identity'
 
 const DEV_PARENT_SHUTDOWN_GRACE_MS = 3000
 const HTTP1_COMPATIBILITY_ENV_VAR = 'ORCA_DISABLE_HTTP2'
@@ -209,6 +210,10 @@ export function configureDevUserDataPath(isDev: boolean): void {
   }
 
   if (!isDev) {
+    // Why: package.json's "name" is still "orca" (unchanged, see fork-app-identity.ts),
+    // so Electron's default userData would otherwise collide with an installed upstream
+    // Orca's profile and single-instance lock. Drop when upstreaming.
+    app.setPath('userData', join(app.getPath('appData'), FORK_USER_DATA_DIR_NAME))
     return
   }
   const overrideUserDataPath = process.env.ORCA_DEV_USER_DATA_PATH
