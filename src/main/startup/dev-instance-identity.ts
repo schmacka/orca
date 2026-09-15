@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import type { AppIdentity } from '../../shared/app-identity'
-import { FORK_APP_NAME, FORK_APP_USER_MODEL_ID } from './fork-app-identity'
+import { FORK_APP_NAME, FORK_APP_USER_MODEL_ID } from '../../shared/fork-app-identity'
 
 // Why fork-sourced: drop this indirection when upstreaming — base identity reverts to 'Orca'/'com.stablyai.orca'.
 const BASE_APP_NAME = FORK_APP_NAME

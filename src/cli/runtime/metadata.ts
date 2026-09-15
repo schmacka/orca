@@ -6,6 +6,7 @@ import {
   getRuntimeMetadataPath,
   type RuntimeMetadata
 } from '../../shared/runtime-bootstrap'
+import { FORK_USER_DATA_DIR_NAME } from '../../shared/fork-app-identity'
 import { RuntimeClientError } from './types'
 
 export function readMetadata(userDataPath: string): RuntimeMetadata {
@@ -51,7 +52,7 @@ export function getDefaultUserDataPath(
     return process.env.ORCA_USER_DATA_PATH
   }
   if (platform === 'darwin') {
-    return join(homeDir, 'Library', 'Application Support', 'orca')
+    return join(homeDir, 'Library', 'Application Support', FORK_USER_DATA_DIR_NAME)
   }
   if (platform === 'win32') {
     const appData = process.env.APPDATA
@@ -61,10 +62,10 @@ export function getDefaultUserDataPath(
         'APPDATA is not set, so the Orca runtime metadata path cannot be resolved.'
       )
     }
-    return join(appData, 'orca')
+    return join(appData, FORK_USER_DATA_DIR_NAME)
   }
   // Why: the CLI must find the same metadata file Electron writes in packaged
   // runs, so this mirrors Electron's default userData base instead of inventing
   // a CLI-specific config path.
-  return join(process.env.XDG_CONFIG_HOME || join(homeDir, '.config'), 'orca')
+  return join(process.env.XDG_CONFIG_HOME || join(homeDir, '.config'), FORK_USER_DATA_DIR_NAME)
 }

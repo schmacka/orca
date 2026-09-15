@@ -361,7 +361,7 @@ describe('configureDevUserDataPath', () => {
 
     // Why: fork-only — package.json's "name" stays "orca", so packaged runs must be
     // pinned onto their own userData dir or they collide with an installed upstream
-    // Orca's profile and single-instance lock. See fork-app-identity.ts.
+    // Orca's profile and single-instance lock. See shared/fork-app-identity.ts.
     expect(app.setPath).toHaveBeenCalledWith('userData', join('/tmp/app-data', 'Orca Beads'))
   })
 })
