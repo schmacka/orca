@@ -12,7 +12,13 @@ export const DEV_HELPER_BUNDLE_ID = `${DEV_BUNDLE_ID}.helper`
 // Why a constant display name rather than none: leaving the stock value makes every dev
 // notification and System Settings > Notifications row read "Electron", indistinguishable from any
 // other Electron app. A fixed name keeps that legible without reintroducing per-branch drift.
-export const DEV_BUNDLE_DISPLAY_NAME = 'Orca Dev'
+//
+// Must stay in step with getDevInstanceIdentity().appName (src/main/startup/dev-instance-identity.ts),
+// which drives app.setName and therefore the safeStorage Keychain service name. That module derives
+// its base name from FORK_APP_NAME (src/shared/fork-app-identity.ts, "Orca Beads" on this fork) rather
+// than a literal 'Orca', so this literal is hand-kept in sync rather than imported: this script runs
+// under plain `node` (see run-electron-vite-dev.mjs) with no TS loader available.
+export const DEV_BUNDLE_DISPLAY_NAME = 'Orca Beads Dev'
 
 /** Info.plist patches for the app bundle. Values must not vary per branch — see above. */
 export function getDevBundlePlistPatches() {
