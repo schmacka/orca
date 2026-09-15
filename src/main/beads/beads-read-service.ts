@@ -1,7 +1,8 @@
 import type {
   BeadsIssuePage,
   BeadsListFilter,
-  BeadsListRequest
+  BeadsListRequest,
+  BeadsListView
 } from '../../shared/beads/beads-contract'
 import {
   normalizeBeadsIssue,
@@ -106,7 +107,16 @@ export async function getBeadsSchema(target: BeadsExecutionTarget): Promise<Bead
   return schema
 }
 
-const LIST_VIEWS = new Set(['list', 'ready', 'blocked', 'search'])
+// Why: satisfies checks this set stays in sync with BeadsListView at compile time
+// instead of drifting silently if a view is added or renamed.
+const LIST_VIEW_MEMBERS = {
+  list: true,
+  ready: true,
+  blocked: true,
+  search: true
+} satisfies Record<BeadsListView, true>
+
+const LIST_VIEWS = new Set(Object.keys(LIST_VIEW_MEMBERS))
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)

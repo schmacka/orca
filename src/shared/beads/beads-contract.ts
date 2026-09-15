@@ -78,7 +78,9 @@ export type BeadsDeleteOutcome = {
   deleted: string
 }
 
-export type BeadsRepoArgs = { repoPath: string; repoId?: string | null }
+// Why: an id pins the host and repo unambiguously; a path-only lookup could match a
+// same-path repo on a different host (an SSH /srv/repo and a local C:\srv\repo).
+export type BeadsRepoArgs = { repoPath: string; repoId: string }
 export type BeadsReadIssueArgs = BeadsRepoArgs & { id: string }
 export type BeadsListArgs = BeadsRepoArgs & { request: BeadsListRequest }
 export type BeadsCountArgs = BeadsRepoArgs & { filter: BeadsListFilter }

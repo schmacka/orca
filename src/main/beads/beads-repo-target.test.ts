@@ -19,10 +19,19 @@ function registry(repos: Repo[]): BeadsRepoRegistry {
 }
 
 describe('findRegisteredBeadsRepo', () => {
-  it('finds a registered repo by id when the path matches, or by path without an id', () => {
+  it('finds a registered repo by id when the path matches', () => {
     const repos = [repo('r1', '/work/a'), repo('r2', '/work/b', 'ssh-1')]
     expect(findRegisteredBeadsRepo(registry(repos), '/work/b', 'r2').id).toBe('r2')
-    expect(findRegisteredBeadsRepo(registry(repos), '/work/a/', null).id).toBe('r1')
+  })
+
+  it('refuses a blank id instead of falling back to a path-only search', () => {
+    const repos = [repo('r1', '/work/a')]
+    expect(() => findRegisteredBeadsRepo(registry(repos), '/work/a/', '')).toThrow(
+      /Access denied: unknown repository path/
+    )
+    expect(() => findRegisteredBeadsRepo(registry(repos), '/work/a/', '   ')).toThrow(
+      /Access denied: unknown repository path/
+    )
   })
 
   it('refuses an id whose repo lives at a different path instead of guessing', () => {
@@ -31,7 +40,7 @@ describe('findRegisteredBeadsRepo', () => {
   })
 
   it('refuses unregistered paths', () => {
-    expect(() => findRegisteredBeadsRepo(registry([]), '/etc', null)).toThrow(
+    expect(() => findRegisteredBeadsRepo(registry([]), '/etc', 'unknown')).toThrow(
       /Access denied: unknown repository path/
     )
   })

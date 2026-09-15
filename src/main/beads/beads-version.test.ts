@@ -64,6 +64,22 @@ describe('getBdVersionInfo', () => {
     expect((await getBdVersionInfo(TARGET)).hostOffline).toBe(true)
     expect((await getBdVersionInfo(TARGET)).supported).toBe(true)
   })
+
+  it('rejects with the classified failure for a repo-specific error, without caching it', async () => {
+    runBdMock.mockResolvedValueOnce(
+      reply('', { exitCode: null, stderr: 'Repository path not found: /gone' })
+    )
+    await expect(getBdVersionInfo(TARGET)).rejects.toMatchObject({
+      kind: 'failed',
+      message: expect.stringContaining('Repository path not found')
+    })
+    // Why: a repo-specific failure must not poison the host-wide cache — a following
+    // probe (even for the same target) still runs `bd version` instead of being
+    // served a cached "missing" verdict.
+    runBdMock.mockResolvedValueOnce(reply('bd version 1.2.2'))
+    await expect(getBdVersionInfo(TARGET)).resolves.toMatchObject({ installed: true })
+    expect(runBdMock).toHaveBeenCalledTimes(2)
+  })
 })
 
 describe('requireSupportedBd', () => {
@@ -82,5 +98,15 @@ describe('requireSupportedBd', () => {
   it('returns the version when supported', async () => {
     runBdMock.mockResolvedValueOnce(reply('bd version 1.2.2'))
     await expect(requireSupportedBd(TARGET)).resolves.toBe('1.2.2')
+  })
+
+  it('rejects with kind failed and the path message when the repo path is gone', async () => {
+    runBdMock.mockResolvedValueOnce(
+      reply('', { exitCode: null, stderr: 'Repository path not found: /gone' })
+    )
+    await expect(requireSupportedBd(TARGET)).rejects.toMatchObject({
+      kind: 'failed',
+      message: expect.stringContaining('Repository path not found: /gone')
+    })
   })
 })

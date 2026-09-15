@@ -1,4 +1,4 @@
-import { BeadsError } from './beads-error'
+import { BeadsError, classifyBdFailure } from './beads-error'
 import {
   BD_READ_TIMEOUT_MS,
   beadsHostKey,
@@ -47,6 +47,12 @@ export function isSupportedBdVersion(version: string): boolean {
 
 async function probeBdVersion(target: BeadsExecutionTarget): Promise<BdVersionInfo> {
   const result = await runBd(target, ['version'], BD_READ_TIMEOUT_MS)
+  // Why: a non-zero exit that is neither a missing binary nor an offline host is a
+  // repo-specific failure (e.g. a deleted repo path) — it says nothing about bd on
+  // this host, so it must not be read as "bd is not installed" or cached as such.
+  if (!result.spawnFailed && !result.hostOffline && result.exitCode !== 0) {
+    throw classifyBdFailure(result)
+  }
   const version = result.exitCode === 0 ? parseBdVersion(result.stdout) : null
   return {
     installed: result.exitCode === 0 && !result.spawnFailed,

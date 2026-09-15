@@ -49,6 +49,20 @@ function rejectParent(filter: BeadsListFilter, command: string): void {
   }
 }
 
+// Why: `ready`, `blocked` and `count` cannot apply every BeadsListFilter field (bd
+// has no flag for it); silently dropping a filter would return unfiltered results
+// the caller believes are filtered, so unsupported fields must reject instead.
+function rejectUnsupportedFilters(
+  command: string,
+  fields: readonly (readonly [field: string, present: boolean])[]
+): void {
+  for (const [field, present] of fields) {
+    if (present) {
+      throw new BeadsError('invalid-input', `bd ${command} cannot filter by ${field}.`)
+    }
+  }
+}
+
 export function buildListArgs(filter: BeadsListFilter, limit: number): string[] {
   const args = ['list', '--json', `--limit=${requireFetchLimit(limit)}`]
   const statuses = statusTokens(filter)
@@ -72,6 +86,10 @@ export function buildListArgs(filter: BeadsListFilter, limit: number): string[] 
 }
 
 export function buildReadyArgs(filter: BeadsListFilter, limit: number): string[] {
+  rejectUnsupportedFilters('ready', [
+    ['statuses', statusTokens(filter).length > 0],
+    ['includeClosed', Boolean(filter.includeClosed)]
+  ])
   const args = ['ready', '--json', `--limit=${requireFetchLimit(limit)}`]
   if (filter.parent) {
     args.push(`--parent=${requireIssueId(filter.parent)}`)
@@ -88,6 +106,15 @@ export function buildReadyArgs(filter: BeadsListFilter, limit: number): string[]
 }
 
 export function buildBlockedArgs(filter: BeadsListFilter): string[] {
+  rejectUnsupportedFilters('blocked', [
+    ['type', Boolean(filter.type)],
+    ['labels', requireStringList(filter.labels, 'labels').length > 0],
+    ['priority', filter.priority !== undefined],
+    ['assignee', Boolean(filter.assignee)],
+    ['unassigned', Boolean(filter.unassigned)],
+    ['statuses', statusTokens(filter).length > 0],
+    ['includeClosed', Boolean(filter.includeClosed)]
+  ])
   const args = ['blocked', '--json']
   if (filter.parent) {
     args.push(`--parent=${requireIssueId(filter.parent)}`)
@@ -119,6 +146,7 @@ export function buildSearchArgs(text: string, filter: BeadsListFilter, limit: nu
 
 export function buildCountArgs(filter: BeadsListFilter): string[] {
   rejectParent(filter, 'count')
+  rejectUnsupportedFilters('count', [['includeClosed', Boolean(filter.includeClosed)]])
   const args = ['count', '--json']
   const status = singleStatus(filter, 'count')
   if (status) {

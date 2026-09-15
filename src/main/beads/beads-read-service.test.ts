@@ -79,6 +79,16 @@ describe('getBeadsWorkspaceStatus', () => {
     installFakeBd(runBdMock, { version: bdReply('', { hostOffline: true, exitCode: null }) })
     await expect(getBeadsWorkspaceStatus(TARGET)).rejects.toMatchObject({ kind: 'host-offline' })
   })
+
+  it('throws (instead of reporting bd missing) when the repo path itself is gone', async () => {
+    installFakeBd(runBdMock, {
+      version: bdReply('', { exitCode: null, stderr: 'Repository path not found: /repo' })
+    })
+    await expect(getBeadsWorkspaceStatus(TARGET)).rejects.toMatchObject({
+      kind: 'failed',
+      message: expect.stringContaining('Repository path not found: /repo')
+    })
+  })
 })
 
 describe('getBeadsSchema and getBeadsChangeToken', () => {

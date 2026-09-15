@@ -93,6 +93,35 @@ describe('read argv builders', () => {
     ])
     expect(() => buildCountArgs({ parent: 'e-1' })).toThrow(/count cannot filter by parent/)
     expect(() => buildCountArgs({ statuses: ['open', 'closed'] })).toThrow(/one status/)
+    expect(() => buildCountArgs({ includeClosed: true })).toThrow(
+      /count cannot filter by includeClosed/
+    )
+  })
+
+  it('rejects filters bd ready cannot apply instead of silently dropping them', () => {
+    expect(() => buildReadyArgs({ statuses: ['open'] }, 10)).toThrow(
+      /ready cannot filter by statuses/
+    )
+    expect(() => buildReadyArgs({ includeClosed: true }, 10)).toThrow(
+      /ready cannot filter by includeClosed/
+    )
+  })
+
+  it('rejects every filter bd blocked cannot apply, allowing only parent', () => {
+    expect(buildBlockedArgs({ parent: 'e-1' })).toEqual(['blocked', '--json', '--parent=e-1'])
+    expect(() => buildBlockedArgs({ type: 'bug' })).toThrow(/blocked cannot filter by type/)
+    expect(() => buildBlockedArgs({ labels: ['ui'] })).toThrow(/blocked cannot filter by labels/)
+    expect(() => buildBlockedArgs({ priority: 1 })).toThrow(/blocked cannot filter by priority/)
+    expect(() => buildBlockedArgs({ assignee: 'a' })).toThrow(/blocked cannot filter by assignee/)
+    expect(() => buildBlockedArgs({ unassigned: true })).toThrow(
+      /blocked cannot filter by unassigned/
+    )
+    expect(() => buildBlockedArgs({ statuses: ['open'] })).toThrow(
+      /blocked cannot filter by statuses/
+    )
+    expect(() => buildBlockedArgs({ includeClosed: true })).toThrow(
+      /blocked cannot filter by includeClosed/
+    )
   })
 
   it('rejects hostile or malformed input before anything runs', () => {
