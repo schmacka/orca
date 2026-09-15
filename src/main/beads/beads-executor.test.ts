@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { commandExecFileAsyncMock, getSshGitProviderMock } = vi.hoisted(() => ({
+const { commandExecFileAsyncMock, getSshGitProviderMock, accessMock } = vi.hoisted(() => ({
   commandExecFileAsyncMock: vi.fn(),
-  getSshGitProviderMock: vi.fn()
+  getSshGitProviderMock: vi.fn(),
+  accessMock: vi.fn()
 }))
 
 vi.mock('../git/runner', () => ({
@@ -18,6 +19,11 @@ vi.mock('../providers/ssh-git-dispatch', () => ({
   getSshGitProviderGeneration: vi.fn(() => 3)
 }))
 
+vi.mock('node:fs/promises', () => ({
+  access: accessMock
+}))
+
+import { classifyBdFailure } from './beads-error'
 import { beadsHostKey, runBd } from './beads-executor'
 
 const LOCAL = { repoPath: '/repo', connectionId: null }
@@ -25,6 +31,8 @@ const LOCAL = { repoPath: '/repo', connectionId: null }
 beforeEach(() => {
   commandExecFileAsyncMock.mockReset()
   getSshGitProviderMock.mockReset()
+  accessMock.mockReset()
+  accessMock.mockResolvedValue(undefined)
 })
 
 describe('beadsHostKey', () => {
@@ -54,7 +62,8 @@ describe('runBd locally', () => {
     })
   })
 
-  it('reports a missing binary', async () => {
+  it('reports a missing binary when the repo path is accessible', async () => {
+    accessMock.mockResolvedValueOnce(undefined)
     commandExecFileAsyncMock.mockRejectedValueOnce({
       code: 'ENOENT',
       syscall: 'spawn bd',
@@ -63,6 +72,19 @@ describe('runBd locally', () => {
     const result = await runBd(LOCAL, ['version'], 15_000)
     expect(result.spawnFailed).toBe(true)
     expect(result.exitCode).toBeNull()
+  })
+
+  it('reports a missing repo path instead of a missing binary when the cwd is inaccessible', async () => {
+    accessMock.mockRejectedValueOnce(new Error('ENOENT: no such file or directory'))
+    commandExecFileAsyncMock.mockRejectedValueOnce({
+      code: 'ENOENT',
+      syscall: 'spawn bd',
+      message: 'spawn bd ENOENT'
+    })
+    const result = await runBd(LOCAL, ['version'], 15_000)
+    expect(result.spawnFailed).toBe(false)
+    expect(result.stderr).toContain('/repo')
+    expect(classifyBdFailure(result).kind).toBe('failed')
   })
 
   it('keeps stdout/stderr and the exit code of a failed command', async () => {

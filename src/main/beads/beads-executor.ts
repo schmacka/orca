@@ -1,3 +1,4 @@
+import { access } from 'node:fs/promises'
 import { isMissingCommandBinaryError } from '../git/exec-error'
 import { commandExecFileAsync, extractExecError } from '../git/runner'
 import { getSshGitProvider, getSshGitProviderGeneration } from '../providers/ssh-git-dispatch'
@@ -74,6 +75,16 @@ async function runBdOverSsh(
   }
 }
 
+/** Node reports the same spawn ENOENT for a missing binary and a missing cwd. */
+async function isRepoPathAccessible(repoPath: string): Promise<boolean> {
+  try {
+    await access(repoPath)
+    return true
+  } catch {
+    return false
+  }
+}
+
 async function runBdLocally(
   target: BeadsExecutionTarget,
   args: readonly string[],
@@ -89,11 +100,22 @@ async function runBdLocally(
   } catch (error) {
     const { stdout, stderr } = extractExecError(error)
     const code = readErrorCode(error)
+    const missingBinary = isMissingCommandBinaryError(error)
+    if (missingBinary && !(await isRepoPathAccessible(target.repoPath))) {
+      return {
+        stdout,
+        stderr: `Repository path not found: ${target.repoPath}`,
+        exitCode: null,
+        spawnFailed: false,
+        hostOffline: false,
+        timedOut: false
+      }
+    }
     return {
       stdout,
       stderr,
       exitCode: typeof code === 'number' ? code : null,
-      spawnFailed: isMissingCommandBinaryError(error),
+      spawnFailed: missingBinary,
       hostOffline: false,
       timedOut: /timed out/i.test(errorMessage(error))
     }
