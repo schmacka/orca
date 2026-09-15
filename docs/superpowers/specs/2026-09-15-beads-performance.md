@@ -19,20 +19,20 @@ Script output (header line quoted with its duplicated `bd` prefix removed — th
 bd 1.2.2 (Homebrew) — 3000 issues, median of 5 runs
 import: 16918 ms
 
-| command | median ms | max ms |
-|---|---:|---:|
-| version | 84 | 84 |
-| context | 90 | 92 |
-| vc status | 296 | 298 |
-| statuses | 249 | 250 |
-| list (201) | 428 | 439 |
-| list all (2001) | 450 | 459 |
-| ready (201) | 386 | 394 |
-| blocked | 208 | 211 |
-| search (201) | 376 | 388 |
-| count | 204 | 209 |
-| show | 575 | 577 |
-| 6 × list (201) in parallel, wall | 3457 | – |
+| command                          | median ms | max ms |
+| -------------------------------- | --------: | -----: |
+| version                          |        84 |     84 |
+| context                          |        90 |     92 |
+| vc status                        |       296 |    298 |
+| statuses                         |       249 |    250 |
+| list (201)                       |       428 |    439 |
+| list all (2001)                  |       450 |    459 |
+| ready (201)                      |       386 |    394 |
+| blocked                          |       208 |    211 |
+| search (201)                     |       376 |    388 |
+| count                            |       204 |    209 |
+| show                             |       575 |    577 |
+| 6 × list (201) in parallel, wall |      3457 |      – |
 
 ## Output size
 
@@ -40,7 +40,7 @@ import: 16918 ms
 
 ## Conclusion (spec §9 rule)
 
-Spec §9: *"If list calls take more than 1 s, add narrower list fields or longer poll intervals before M2."*
+Spec §9: _"If list calls take more than 1 s, add narrower list fields or longer poll intervals before M2."_
 
 `list (201)` median is **428 ms** (max 439 ms), well under the 1000 ms threshold. `list all (2001)` median is 450 ms, also well under. **No change needed before M2.**
 
