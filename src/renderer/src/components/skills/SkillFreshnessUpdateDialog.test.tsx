@@ -8,6 +8,7 @@ import type {
   SkillFreshnessInventory,
   SkillUpdateRun
 } from '../../../../shared/skill-freshness'
+import { ORCA_SKILLS_REPOSITORY_URL } from '../../../../shared/agent-feature-install-commands'
 import { SkillFreshnessUpdateDialog } from './SkillFreshnessUpdateDialog'
 import {
   consumeSkillFreshnessUpdateDialogRequest,
@@ -533,7 +534,7 @@ describe('SkillFreshnessUpdateDialog', () => {
     await openViaRequest()
 
     expect(container?.textContent).toContain(
-      'npx skills add https://github.com/stablyai/orca --skill orchestration --global'
+      `npx skills add ${ORCA_SKILLS_REPOSITORY_URL} --skill orchestration --global`
     )
   })
 
@@ -564,7 +565,7 @@ describe('SkillFreshnessUpdateDialog', () => {
 
     const row = container?.querySelector('[data-skill-row="orchestration"]')
     expect(row?.textContent).toContain(
-      'npx skills add https://github.com/stablyai/orca --skill orchestration --global'
+      `npx skills add ${ORCA_SKILLS_REPOSITORY_URL} --skill orchestration --global`
     )
     expect(row?.textContent).not.toContain('This is a project skill, not a global one')
     // Still listed, though — ownership silences the explanation, never the location.

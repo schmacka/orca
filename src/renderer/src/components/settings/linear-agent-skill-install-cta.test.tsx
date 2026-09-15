@@ -3,6 +3,7 @@
 import { act, type ComponentProps } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import type { DiscoveredSkill } from '../../../../shared/skills'
+import { ORCA_SKILLS_REPOSITORY_URL } from '../../../../shared/agent-feature-install-commands'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TooltipProvider } from '../ui/tooltip'
 import { LinearAgentSkillInstallCta } from './linear-agent-skill-install-cta'
@@ -116,7 +117,7 @@ describe('LinearAgentSkillInstallCta', () => {
       'Full guided setup (connect + skill + visibility) is under Settings → Task Sources.'
     )
     expect(rendered.textContent).toContain(
-      'npx skills add https://github.com/stablyai/orca --skill orca-linear --global'
+      `npx skills add ${ORCA_SKILLS_REPOSITORY_URL} --skill orca-linear --global`
     )
   })
 
@@ -130,7 +131,7 @@ describe('LinearAgentSkillInstallCta', () => {
     })
 
     expect(mocks.clipboardWrite).toHaveBeenCalledWith(
-      'npx skills add https://github.com/stablyai/orca --skill orca-linear --global'
+      `npx skills add ${ORCA_SKILLS_REPOSITORY_URL} --skill orca-linear --global`
     )
     expect(mocks.toastSuccess).toHaveBeenCalled()
   })

@@ -12,6 +12,7 @@ import {
   ORCHESTRATION_SKILL_NAME
 } from '@/lib/agent-feature-install-commands'
 import { BROWSER_USE_ENABLED_STORAGE_KEY } from '@/lib/browser-use-setup-state'
+import { ORCA_SKILLS_REPOSITORY_URL } from '../../../../shared/agent-feature-install-commands'
 import {
   ORCHESTRATION_ENABLED_STORAGE_KEY,
   ORCHESTRATION_SETUP_DISMISSED_STORAGE_KEY
@@ -125,7 +126,7 @@ describe('onboarding feature setup runner', () => {
 
     expect(text).toBe(ALL_SKILL_INSTALL_COMMAND)
     expect(text).toBe(
-      'npx skills add https://github.com/stablyai/orca --skill orca-cli --skill computer-use --skill orchestration --skill orca-linear --global'
+      `npx skills add ${ORCA_SKILLS_REPOSITORY_URL} --skill orca-cli --skill computer-use --skill orchestration --skill orca-linear --global`
     )
   })
 
