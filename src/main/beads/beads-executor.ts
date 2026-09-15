@@ -2,6 +2,7 @@ import { access } from 'node:fs/promises'
 import { isMissingCommandBinaryError } from '../git/exec-error'
 import { commandExecFileAsync, extractExecError } from '../git/runner'
 import { getSshGitProvider, getSshGitProviderGeneration } from '../providers/ssh-git-dispatch'
+import { isWslPath, wslUncDirectoryExistsAsync } from '../wsl'
 
 export const BD_READ_TIMEOUT_MS = 15_000
 export const BD_WRITE_TIMEOUT_MS = 30_000
@@ -75,13 +76,26 @@ async function runBdOverSsh(
   }
 }
 
-/** Node reports the same spawn ENOENT for a missing binary and a missing cwd. */
-async function isRepoPathAccessible(repoPath: string): Promise<boolean> {
+/**
+ * Node reports the same spawn ENOENT for a missing binary and a missing cwd,
+ * so this must positively confirm the repo path is gone, not merely fail to
+ * confirm it exists.
+ *
+ * Why WSL paths need their own probe: Win32 fs calls against the WSL 9P
+ * filesystem (\\wsl.localhost\...) can report ENOENT for directories that do
+ * exist, so `access()` is unreliable there — an in-distro probe is the
+ * authoritative answer, and its `null` (undeterminable) must not be read as
+ * "missing".
+ */
+async function isRepoPathMissing(repoPath: string): Promise<boolean> {
+  if (isWslPath(repoPath)) {
+    return (await wslUncDirectoryExistsAsync(repoPath)) === false
+  }
   try {
     await access(repoPath)
-    return true
-  } catch {
     return false
+  } catch {
+    return true
   }
 }
 
@@ -101,7 +115,7 @@ async function runBdLocally(
     const { stdout, stderr } = extractExecError(error)
     const code = readErrorCode(error)
     const missingBinary = isMissingCommandBinaryError(error)
-    if (missingBinary && !(await isRepoPathAccessible(target.repoPath))) {
+    if (missingBinary && (await isRepoPathMissing(target.repoPath))) {
       return {
         stdout,
         stderr: `Repository path not found: ${target.repoPath}`,

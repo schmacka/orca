@@ -1,9 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { commandExecFileAsyncMock, getSshGitProviderMock, accessMock } = vi.hoisted(() => ({
+const {
+  commandExecFileAsyncMock,
+  getSshGitProviderMock,
+  accessMock,
+  isWslPathMock,
+  wslUncDirectoryExistsAsyncMock
+} = vi.hoisted(() => ({
   commandExecFileAsyncMock: vi.fn(),
   getSshGitProviderMock: vi.fn(),
-  accessMock: vi.fn()
+  accessMock: vi.fn(),
+  isWslPathMock: vi.fn(),
+  wslUncDirectoryExistsAsyncMock: vi.fn()
 }))
 
 vi.mock('../git/runner', () => ({
@@ -23,6 +31,11 @@ vi.mock('node:fs/promises', () => ({
   access: accessMock
 }))
 
+vi.mock('../wsl', () => ({
+  isWslPath: isWslPathMock,
+  wslUncDirectoryExistsAsync: wslUncDirectoryExistsAsyncMock
+}))
+
 import { classifyBdFailure } from './beads-error'
 import { beadsHostKey, runBd } from './beads-executor'
 
@@ -33,6 +46,9 @@ beforeEach(() => {
   getSshGitProviderMock.mockReset()
   accessMock.mockReset()
   accessMock.mockResolvedValue(undefined)
+  isWslPathMock.mockReset()
+  isWslPathMock.mockReturnValue(false)
+  wslUncDirectoryExistsAsyncMock.mockReset()
 })
 
 describe('beadsHostKey', () => {
@@ -85,6 +101,43 @@ describe('runBd locally', () => {
     expect(result.spawnFailed).toBe(false)
     expect(result.stderr).toContain('/repo')
     expect(classifyBdFailure(result).kind).toBe('failed')
+  })
+
+  it('reports a missing repo path for a WSL UNC path when the in-distro probe says it does not exist', async () => {
+    isWslPathMock.mockReturnValue(true)
+    wslUncDirectoryExistsAsyncMock.mockResolvedValueOnce(false)
+    commandExecFileAsyncMock.mockRejectedValueOnce({
+      code: 'ENOENT',
+      syscall: 'spawn bd',
+      message: 'spawn bd ENOENT'
+    })
+    const wslTarget = {
+      repoPath: '\\\\wsl.localhost\\Ubuntu\\home\\user\\repo',
+      connectionId: null,
+      wslDistro: 'Ubuntu'
+    }
+    const result = await runBd(wslTarget, ['version'], 15_000)
+    expect(result.spawnFailed).toBe(false)
+    expect(result.stderr).toContain('wsl.localhost')
+    expect(accessMock).not.toHaveBeenCalled()
+  })
+
+  it('keeps the missing-binary classification for a WSL path when the in-distro probe is undeterminable', async () => {
+    isWslPathMock.mockReturnValue(true)
+    wslUncDirectoryExistsAsyncMock.mockResolvedValueOnce(null)
+    commandExecFileAsyncMock.mockRejectedValueOnce({
+      code: 'ENOENT',
+      syscall: 'spawn bd',
+      message: 'spawn bd ENOENT'
+    })
+    const wslTarget = {
+      repoPath: '\\\\wsl.localhost\\Ubuntu\\home\\user\\repo',
+      connectionId: null,
+      wslDistro: 'Ubuntu'
+    }
+    const result = await runBd(wslTarget, ['version'], 15_000)
+    expect(result.spawnFailed).toBe(true)
+    expect(accessMock).not.toHaveBeenCalled()
   })
 
   it('keeps stdout/stderr and the exit code of a failed command', async () => {
