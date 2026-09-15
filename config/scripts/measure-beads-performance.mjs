@@ -67,6 +67,7 @@ try {
   const importMs = performance.now() - importStart
   const sampleId = JSON.parse(bd(['list', '--json', '--limit=1']))[0].id
 
+  /** @type {Array<[string, string[]]>} */
   const cases = [
     ['version', ['version']],
     ['context', ['context', '--json']],
