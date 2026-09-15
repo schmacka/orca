@@ -25,9 +25,14 @@ function noNewline(value: string, field: string): string {
 
 // Why: every value uses --flag=value, so text that starts with '-' can never be
 // read as another flag. Multi-line markdown is fine inside a single argv entry.
-function textFlags(fields: TextFields): string[] {
+// Why: bd update has --allow-empty-description to clear a description; bd create
+// has no such flag, so an empty create description must be omitted entirely.
+function textFlags(fields: TextFields, options: { allowEmptyDescription: boolean }): string[] {
   const flags: string[] = []
-  if (fields.description !== undefined) {
+  if (
+    fields.description !== undefined &&
+    (fields.description !== '' || options.allowEmptyDescription)
+  ) {
     flags.push(`--description=${fields.description}`)
     if (fields.description === '') {
       flags.push('--allow-empty-description')
@@ -62,7 +67,7 @@ export function buildCreateArgs(input: BeadsCreateInput, actor: string | null): 
   for (const label of requireStringList(input.labels, 'labels')) {
     args.push(`--labels=${requireLabel(label)}`)
   }
-  args.push(...textFlags(input), ...actorFlags(actor))
+  args.push(...textFlags(input, { allowEmptyDescription: false }), ...actorFlags(actor))
   return args
 }
 
@@ -97,7 +102,7 @@ export function buildUpdateArgs(
   for (const label of requireStringList(patch.removeLabels, 'labels to remove')) {
     args.push(`--remove-label=${requireLabel(label)}`)
   }
-  args.push(...textFlags(patch))
+  args.push(...textFlags(patch, { allowEmptyDescription: true }))
   if (args.length === 3) {
     throw new BeadsError('invalid-input', 'Nothing to update.')
   }

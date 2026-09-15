@@ -47,6 +47,14 @@ describe('write argv builders', () => {
     ])
   })
 
+  it('omits description entirely for create when empty, since bd create has no --allow-empty-description', () => {
+    expect(buildCreateArgs({ title: 'x', description: '' }, null)).toEqual([
+      'create',
+      '--json',
+      '--title=x'
+    ])
+  })
+
   it('builds update only with provided fields and clears a description explicitly', () => {
     expect(
       buildUpdateArgs(
