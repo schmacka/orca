@@ -1,0 +1,14 @@
+{
+  "backend": "dolt",
+  "bd_version": "1.2.2",
+  "beads_dir": "/tmp/orca-beads-fixtures/.beads",
+  "cwd_repo_root": "/tmp/orca-beads-fixtures",
+  "database": "fx",
+  "dolt_mode": "embedded",
+  "is_redirected": false,
+  "is_worktree": false,
+  "project_id": "d61607d9-567a-47a9-a387-8c95dbf3f4b8",
+  "repo_root": "/tmp/orca-beads-fixtures",
+  "role": "maintainer",
+  "schema_version": 1
+}

@@ -1,0 +1,14 @@
+[
+  {
+    "id": "fx-83l",
+    "title": "Blocker",
+    "status": "open",
+    "priority": 0,
+    "issue_type": "task",
+    "owner": "fixtures@example.com",
+    "created_at": "2026-09-15T16:17:00Z",
+    "created_by": "orca-fixtures",
+    "updated_at": "2026-09-15T16:17:01Z",
+    "labels": ["backend"]
+  }
+]

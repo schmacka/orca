@@ -1,0 +1,99 @@
+[
+  {
+    "id": "fx-83l",
+    "title": "Blocker",
+    "status": "in_progress",
+    "priority": 0,
+    "issue_type": "task",
+    "assignee": "orca-fixtures",
+    "owner": "fixtures@example.com",
+    "created_at": "2026-09-15T16:17:00Z",
+    "created_by": "orca-fixtures",
+    "updated_at": "2026-09-15T16:17:02Z",
+    "started_at": "2026-09-15T16:17:02Z",
+    "labels": ["backend"],
+    "dependency_count": 0,
+    "dependent_count": 1,
+    "comment_count": 0
+  },
+  {
+    "id": "fx-6wy",
+    "title": "Epic",
+    "status": "open",
+    "priority": 1,
+    "issue_type": "epic",
+    "owner": "fixtures@example.com",
+    "created_at": "2026-09-15T16:16:59Z",
+    "created_by": "orca-fixtures",
+    "updated_at": "2026-09-15T16:16:59Z",
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0
+  },
+  {
+    "id": "fx-11",
+    "title": "Ambiguous one",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "owner": "fixtures@example.com",
+    "created_at": "2026-09-15T16:17:01Z",
+    "created_by": "orca-fixtures",
+    "updated_at": "2026-09-15T16:17:01Z",
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0
+  },
+  {
+    "id": "fx-12",
+    "title": "Ambiguous two",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "owner": "fixtures@example.com",
+    "created_at": "2026-09-15T16:17:01Z",
+    "created_by": "orca-fixtures",
+    "updated_at": "2026-09-15T16:17:01Z",
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0
+  },
+  {
+    "id": "fx-6wy.1",
+    "title": "-dash child",
+    "description": "desc",
+    "design": "design",
+    "acceptance_criteria": "acc",
+    "notes": "notes",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "owner": "fixtures@example.com",
+    "created_at": "2026-09-15T16:16:59Z",
+    "created_by": "orca-fixtures",
+    "updated_at": "2026-09-15T16:16:59Z",
+    "labels": ["ui"],
+    "dependencies": [
+      {
+        "issue_id": "fx-6wy.1",
+        "depends_on_id": "fx-6wy",
+        "type": "parent-child",
+        "created_at": "2026-09-15T18:16:59Z",
+        "created_by": "orca-fixtures",
+        "metadata": "{}"
+      },
+      {
+        "issue_id": "fx-6wy.1",
+        "depends_on_id": "fx-83l",
+        "type": "blocks",
+        "created_at": "2026-09-15T18:17:00Z",
+        "created_by": "orca-fixtures",
+        "metadata": "{}"
+      }
+    ],
+    "dependency_count": 1,
+    "dependent_count": 0,
+    "comment_count": 1,
+    "parent": "fx-6wy"
+  }
+]

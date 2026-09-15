@@ -1,0 +1,20 @@
+[
+  {
+    "id": "fx-6wy.1",
+    "title": "-dash child",
+    "description": "desc",
+    "design": "design",
+    "acceptance_criteria": "acc",
+    "notes": "notes",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "owner": "fixtures@example.com",
+    "created_at": "2026-09-15T16:16:59Z",
+    "created_by": "orca-fixtures",
+    "updated_at": "2026-09-15T16:16:59Z",
+    "labels": ["ui"],
+    "blocked_by_count": 1,
+    "blocked_by": ["fx-83l"]
+  }
+]

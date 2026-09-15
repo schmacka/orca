@@ -1,0 +1,5 @@
+{
+  "stdout": "{\n  \"error\": \"cannot resolve repo context: no .beads directory found\",\n  \"schema_version\": 1\n}\n",
+  "stderr": "",
+  "exitCode": 1
+}

@@ -1,0 +1,60 @@
+[
+  {
+    "id": "fx-6wy.1",
+    "title": "-dash child",
+    "description": "desc",
+    "design": "design",
+    "acceptance_criteria": "acc",
+    "notes": "notes",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "owner": "fixtures@example.com",
+    "created_at": "2026-09-15T16:16:59Z",
+    "created_by": "orca-fixtures",
+    "updated_at": "2026-09-15T16:16:59Z",
+    "labels": ["ui"],
+    "dependencies": [
+      {
+        "id": "fx-6wy",
+        "title": "Epic",
+        "status": "open",
+        "priority": 1,
+        "issue_type": "epic",
+        "owner": "fixtures@example.com",
+        "created_at": "2026-09-15T16:16:59Z",
+        "created_by": "orca-fixtures",
+        "updated_at": "2026-09-15T16:16:59Z",
+        "dependency_type": "parent-child"
+      },
+      {
+        "id": "fx-83l",
+        "title": "Blocker",
+        "status": "in_progress",
+        "priority": 0,
+        "issue_type": "task",
+        "assignee": "orca-fixtures",
+        "owner": "fixtures@example.com",
+        "created_at": "2026-09-15T16:17:00Z",
+        "created_by": "orca-fixtures",
+        "updated_at": "2026-09-15T16:17:02Z",
+        "started_at": "2026-09-15T16:17:02Z",
+        "labels": ["backend"],
+        "dependency_type": "blocks"
+      }
+    ],
+    "comments": [
+      {
+        "id": "01a0a5db-84ee-7017-a38c-9e1d44170201",
+        "issue_id": "fx-6wy.1",
+        "author": "orca-fixtures",
+        "text": "-first comment",
+        "created_at": "2026-09-15T16:17:02Z"
+      }
+    ],
+    "parent": "fx-6wy",
+    "dependent_count": 0,
+    "dependency_count": 2,
+    "comment_count": 1
+  }
+]

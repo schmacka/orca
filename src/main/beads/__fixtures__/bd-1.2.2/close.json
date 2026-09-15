@@ -1,0 +1,18 @@
+[
+  {
+    "id": "fx-83l",
+    "title": "Blocker",
+    "status": "closed",
+    "priority": 0,
+    "issue_type": "task",
+    "assignee": "orca-fixtures",
+    "owner": "fixtures@example.com",
+    "created_at": "2026-09-15T16:17:00Z",
+    "created_by": "orca-fixtures",
+    "updated_at": "2026-09-15T16:17:05Z",
+    "started_at": "2026-09-15T16:17:02Z",
+    "closed_at": "2026-09-15T16:17:05Z",
+    "close_reason": "done",
+    "labels": ["backend"]
+  }
+]

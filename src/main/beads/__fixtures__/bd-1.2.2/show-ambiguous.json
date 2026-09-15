@@ -1,0 +1,5 @@
+{
+  "stdout": "{\n  \"error\": \"no issues found matching the provided IDs\",\n  \"schema_version\": 1\n}\n",
+  "stderr": "Error fetching fx-1: ambiguous ID \"fx-1\" matches 3 issues: [fx-13 fx-11 fx-6wy.1]\nUse more characters to disambiguate\n",
+  "exitCode": 1
+}
