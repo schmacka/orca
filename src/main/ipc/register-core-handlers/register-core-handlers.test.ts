@@ -51,6 +51,7 @@ const {
   registerJiraHandlersMock,
   registerBitbucketHandlersMock,
   registerGitLabHandlersMock,
+  registerBeadsHandlersMock,
   registerHostedReviewHandlersMock,
   registerExportHandlersMock,
   registerCodexConfigSyncHandlersMock,
@@ -118,6 +119,7 @@ const {
   registerJiraHandlersMock: vi.fn(),
   registerBitbucketHandlersMock: vi.fn(),
   registerGitLabHandlersMock: vi.fn(),
+  registerBeadsHandlersMock: vi.fn(),
   registerHostedReviewHandlersMock: vi.fn(),
   registerExportHandlersMock: vi.fn(),
   registerCodexConfigSyncHandlersMock: vi.fn(),
@@ -386,6 +388,10 @@ vi.mock('../gitlab', () => ({
   registerGitLabHandlers: registerGitLabHandlersMock
 }))
 
+vi.mock('../beads', () => ({
+  registerBeadsHandlers: registerBeadsHandlersMock
+}))
+
 vi.mock('../hosted-review', () => ({
   registerHostedReviewHandlers: registerHostedReviewHandlersMock
 }))
@@ -448,6 +454,7 @@ describe('registerCoreHandlers', () => {
     registerJiraHandlersMock.mockReset()
     registerBitbucketHandlersMock.mockReset()
     registerGitLabHandlersMock.mockReset()
+    registerBeadsHandlersMock.mockReset()
     registerHostedReviewHandlersMock.mockReset()
     registerExportHandlersMock.mockReset()
     registerDashboardPopoutHandlersMock.mockReset()
@@ -530,6 +537,7 @@ describe('registerCoreHandlers', () => {
     expect(registerJiraHandlersMock).toHaveBeenCalled()
     expect(registerBitbucketHandlersMock).toHaveBeenCalled()
     expect(registerGitLabHandlersMock).toHaveBeenCalledWith(store)
+    expect(registerBeadsHandlersMock).toHaveBeenCalledWith(store)
     expect(registerHostedReviewHandlersMock).toHaveBeenCalledWith(store, stats)
     expect(registerFeedbackHandlersMock).toHaveBeenCalled()
     expect(registerStatsHandlersMock).toHaveBeenCalledWith(stats)
@@ -669,6 +677,7 @@ describe('registerCoreHandlers', () => {
     expect(registerCliHandlersMock).not.toHaveBeenCalled()
     expect(registerPreflightHandlersMock).not.toHaveBeenCalled()
     expect(registerBrowserHandlersMock).not.toHaveBeenCalled()
+    expect(registerBeadsHandlersMock).not.toHaveBeenCalled()
     // Why: ipcMain.handle throws on duplicate channel registration, so the
     // memory handler must not be wired up a second time on reactivation.
     expect(registerMemoryHandlersMock).not.toHaveBeenCalled()
