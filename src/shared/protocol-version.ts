@@ -67,6 +67,7 @@ export const FOLDER_WORKSPACE_PATH_STATUS_RUNTIME_CAPABILITY =
 export const LINEAR_ISSUE_ATTRIBUTE_FILTER_RUNTIME_CAPABILITY =
   'linear.issue-attribute-filter.v1' as const
 export const JIRA_USER_FIELDS_RUNTIME_CAPABILITY = 'jira.user-fields.v1' as const
+export const BEADS_TASK_SOURCE_RUNTIME_CAPABILITY = 'beads.task-source.v1' as const
 export const JIRA_USER_FIELDS_UPDATE_REQUIRED_MESSAGE =
   'Creating Jira issues with user fields requires a newer Orca server. Update the server and try again.'
 // Why: signals the host exposes the Agent Session History scanner over RPC
@@ -287,6 +288,7 @@ export const RUNTIME_CAPABILITIES = [
   FOLDER_WORKSPACE_PATH_STATUS_RUNTIME_CAPABILITY,
   LINEAR_ISSUE_ATTRIBUTE_FILTER_RUNTIME_CAPABILITY,
   JIRA_USER_FIELDS_RUNTIME_CAPABILITY,
+  BEADS_TASK_SOURCE_RUNTIME_CAPABILITY,
   AI_VAULT_RUNTIME_CAPABILITY,
   AI_VAULT_SESSION_TITLES_RUNTIME_CAPABILITY,
   TERMINAL_QUERY_REPLY_INPUT_RUNTIME_CAPABILITY,

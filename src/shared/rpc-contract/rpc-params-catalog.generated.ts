@@ -47,6 +47,19 @@ import {
   AutomationRuns,
   AutomationUpdate
 } from './automation-params'
+import {
+  BeadsAddCommentParams,
+  BeadsCloseIssueParams,
+  BeadsCountIssuesParams,
+  BeadsCreateIssueParams,
+  BeadsDeferIssueParams,
+  BeadsIssueActorParams,
+  BeadsIssueParams,
+  BeadsListIssuesParams,
+  BeadsReopenIssueParams,
+  BeadsRepoParams,
+  BeadsUpdateIssueParams
+} from './beads-params'
 import { CertificateProceed } from './browser-core-params'
 import { MouseClick } from './browser-extras-params'
 import {
@@ -598,6 +611,21 @@ export const RPC_PARAMS_BY_METHOD = {
   'automation.runs': AutomationRuns,
   'automation.show': AutomationId,
   'automation.update': AutomationUpdate,
+  'beads.addComment': BeadsAddCommentParams,
+  'beads.claimIssue': BeadsIssueActorParams,
+  'beads.closeIssue': BeadsCloseIssueParams,
+  'beads.countIssues': BeadsCountIssuesParams,
+  'beads.createIssue': BeadsCreateIssueParams,
+  'beads.deferIssue': BeadsDeferIssueParams,
+  'beads.deleteIssue': BeadsIssueActorParams,
+  'beads.getChangeToken': BeadsRepoParams,
+  'beads.getIssueDetails': BeadsIssueParams,
+  'beads.getSchema': BeadsRepoParams,
+  'beads.getStatus': BeadsRepoParams,
+  'beads.listIssues': BeadsListIssuesParams,
+  'beads.reopenIssue': BeadsReopenIssueParams,
+  'beads.undeferIssue': BeadsIssueActorParams,
+  'beads.updateIssue': BeadsUpdateIssueParams,
   'browser.back': BrowserTarget,
   'browser.capture.start': BrowserTarget,
   'browser.capture.stop': BrowserTarget,
