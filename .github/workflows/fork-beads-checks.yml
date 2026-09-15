@@ -1,0 +1,40 @@
+name: Fork beads checks
+
+on:
+  push:
+    branches: [beads]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/install-node-dependencies
+      - run: pnpm run typecheck
+
+  beads-tests:
+    name: Beads unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/install-node-dependencies
+        with:
+          native-runtime: node
+      - run: pnpm exec vitest run --config config/vitest.config.ts --passWithNoTests src/shared/beads src/main/beads src/main/runtime/rpc/methods/beads.test.ts src/main/runtime/runtime-beads-commands.test.ts
+
+  unit-tests:
+    name: Unit tests
+    uses: ./.github/workflows/unit-tests.yml
+    with:
+      node_versions: '["24"]'
