@@ -8,11 +8,13 @@
 
 ## Method
 
-Generated a fresh 3,000-issue database in a temp dir (never `~/Developer/baumoscan` or this repo's `.beads`) via `bd import -`, then timed the bd calls Orca's backend makes: `version`, `context --json`, `vc status --json`, `statuses --json`, `list --json --limit=201`, `list --json --all --limit=2001`, `ready --json --limit=201`, `blocked --json`, `search --json --query=… --limit=201`, `count --json`, `show … --json --include-dependents --include-comments`, plus 6 parallel `list --limit=201` calls (wall time). 5 samples per case (median/max reported); a smaller 50-issue smoke run first confirmed `bd import -` accepts every generated field (`status`, `labels` included — no removal needed). The temp dir was deleted after each run.
+Generated a fresh 3,000-issue database in a temp dir (never this repo's `.beads`) via `bd import -`, then timed the bd calls Orca's backend makes: `version`, `context --json`, `vc status --json`, `statuses --json`, `list --json --limit=201`, `list --json --all --limit=2001`, `ready --json --limit=201`, `blocked --json`, `search --json --query=… --limit=201`, `count --json`, `show … --json --include-dependents --include-comments`, plus 6 parallel `list --limit=201` calls (wall time). 5 samples per case (median/max reported); a smaller 50-issue smoke run first confirmed `bd import -` accepts every generated field (`status`, `labels` included — no removal needed). The temp dir was deleted after each run.
 
 Numbers looked stable on the first run (max within ~1–3% of median for every case), so per the instruction to repeat only if noisy, a second run was not taken. A reviewer working Task 14 in parallel does not touch files and is unlikely to have skewed CPU-bound `bd` latency meaningfully.
 
 ## Results
+
+Script output (header line quoted with its duplicated `bd` prefix removed — the script prints `bd ${bd(['version']).trim()}`, and `bd version` already returns a string starting with `bd`):
 
 bd 1.2.2 (Homebrew) — 3000 issues, median of 5 runs
 import: 16918 ms
