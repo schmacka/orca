@@ -49,7 +49,7 @@ Main process: src/main/beads/
   db-queue.ts                  one serial queue per beads_dir; reads coalesced, writes ordered
   context.ts                   `bd context --json` per repo → beads_dir, project_id, is_worktree
   schema.ts                    `bd statuses/types --json` per database → status categories, types
-  change-watcher.ts            polls the `bd vc status --json` commit hash
+  read service getChangeToken  `bd vc status --json` commit hash; renderer polls it (M2)
   errors.ts                    BeadsError classification
 IPC: src/main/ipc/beads.ts · RPC: src/main/runtime/rpc/methods/beads.ts + shared/rpc-contract/beads-params.ts
 Preload: src/preload/api/beads-api.ts, beads-bridge.ts
@@ -83,12 +83,12 @@ Each entry has a typed input, an argv builder and an output parser. Nothing else
   - `list` with filters: status, type, label, parent, priority, assignee, limit, all
   - `ready`, `blocked`, `search`, `count`
   - `show` with dependents and comments
-  - `graph`, `gateList`
 - **Write:**
   - `create`, `update` (fields and text sections), `claim`
   - `close` (with reason), `reopen`, `defer`, `undefer`, `delete`
-  - `comment`, `labelAdd`, `labelRemove`, `depAdd`, `depRemove`, `duplicate`, `supersede`
-  - `gateResolve`, `batch`
+  - `comment`, `labelAdd`, `labelRemove`
+
+Dependencies, graph and gates: M5 plan.
 
 **Input rules:**
 - IDs must match `^[A-Za-z0-9][A-Za-z0-9._-]*$` and are never matched by prefix.
@@ -98,8 +98,8 @@ Each entry has a typed input, an argv builder and an output parser. Nothing else
 ### 3.3 Queue and caching
 - **Queue:** one `BeadsDbQueue` per `beads_dir`. Orca-issued calls to a database run one at a time; identical in-flight reads are shared.
 - **Cache keys:** `(beads_dir, operation, normalized input)`. Worktrees resolve to the main repo's `beads_dir` via `bd context`, so they share caches.
-- **Change watcher:** polls the commit hash every 5 s while a beads view is visible, and every 60 s otherwise. It stops when no beads UI or linked worktree needs it. A changed hash marks all of that database's caches stale; visible queries then reload.
-- **Writes:** update the UI immediately and roll back if bd fails. After a successful write the watcher polls at once.
+- **Change token:** The renderer polls `getChangeToken` every 5 s while a beads view is visible and every 60 s otherwise; main invalidates its schema cache when the token changes.
+- **Writes:** update the UI immediately and roll back if bd fails. After a successful write the renderer polls the change token at once.
 
 ### 3.4 Schema
 - `bd statuses --json` provides statuses with a category. The categories are `active` (open), `wip` (in_progress, blocked, hooked), `frozen` (deferred, pinned) and `done` (closed). `bd types --json` provides `core_types`, plus any custom types.
@@ -142,6 +142,7 @@ Each entry has a typed input, an argv builder and an output parser. Nothing else
 ### 4.2 Detail pane (split pane; drawer below a width breakpoint)
 - **Header:** ID (click to copy), type, priority, status and labels, each editable inline.
 - **Actions:** ▶ Start worktree · Claim · Status · Priority · Close… (reason required) · ⋯ (defer/undefer, reopen, delete with confirmation, copy ID, open full graph).
+  - bd refuses to close an issue with open blockers (`cannot close …: blocked by open issues`). The M4 plan adds `force` to close so the UI can offer 'Close anyway' (`--force`).
 - **Blocked callout:**
   - Lists each open blocker with Open and "Start blocker" buttons.
   - Lists open gates blocking the issue (for example "Waiting on gate: human"). Only `human` gates get a Resolve button; timer, gh:run, gh:pr and bead gates are shown read-only with their await target.
@@ -153,7 +154,7 @@ Each entry has a typed input, an argv builder and an output parser. Nothing else
 - **Linked worktrees:** each with its agent status badge.
 
 ### 4.3 Dialogs and views
-- **New issue:** title, type, priority, parent, labels, description, and optional blocked-by. Saved as a single `batch` call.
+- **New issue:** title, type, priority, parent, labels, description, and optional blocked-by. Saved with one `bd create` call (it accepts parent, labels and dependencies directly).
 - **Full dependency graph:** from `bd graph --json`, opened in a modal.
 - **Settings card:**
   - bd version and status, and the actor
@@ -162,6 +163,8 @@ Each entry has a typed input, an argv builder and an output parser. Nothing else
   - per-repo beads availability
 
 ## 5. Agent workflow
+
+> **M2 note:** IPC clients should always send `repoId`; without it the backend matches by path only.
 
 ### 5.1 Start worktree from a bead
 1. **Composer:** opens the existing new-workspace composer, pre-filled with:
@@ -200,12 +203,13 @@ Each entry has a typed input, an argv builder and an output parser. Nothing else
 
 | `BeadsError.kind` | Detection | UI |
 |---|---|---|
-| `bd-missing` | ENOENT when resolving or running bd | Setup card with install instructions; re-checked when the window regains focus |
+| `bd-missing` | ENOENT when resolving or running bd, once the repo path is confirmed to exist (Node reports the same spawn ENOENT for a missing cwd; local: `access` check; WSL: in-distro probe). A missing repo path is reported as `failed` "Repository path not found" | Setup card with install instructions; re-checked when the window regains focus |
 | `bd-outdated` | `version` below 1.2.0 | "Upgrade bd" message showing the version found |
-| `not-initialized` | bd's specific "not initialized" output only | "Initialize beads" hint with `bd init` (Orca never runs it) |
-| `ambiguous-id` / `not-found` | bd error text | Inline message; no guessing |
+| `not-initialized` | bd's specific "not initialized" output only, or `no .beads directory found` (the `bd context` wording) | "Initialize beads" hint with `bd init` (Orca never runs it) |
+| `ambiguous-id` / `not-found` | `ambiguous ID` on stderr (bd prints the not-found JSON for both); `not-found` from bd's "no issues found" error | Inline message; no guessing |
 | `busy` | Timeout while the database lock is held | "Beads busy, another process is writing" plus Retry |
 | `host-offline` | Existing SSH or runtime state | Cached data shown read-only |
+| `invalid-input` | argv validation or unregistered repo | Inline message |
 | `failed` | Anything else | bd's stderr (trimmed) plus Retry. Never reported as `not-initialized` (fixes #14013's review finding 3) |
 
 - **Provider-keyed failure state:** a failed issue lookup is remembered together with its provider, so switching provider clears it (fixes #14013's review finding 2).
@@ -231,7 +235,7 @@ Each entry has a typed input, an argv builder and an output parser. Nothing else
 - **Build gates:** `pnpm tc`, `pnpm lint` (including the localization and bundled-skill checks) and `pnpm test` stay green.
 
 ## 9. Risks and open points
-- **Performance at scale** (1–5k issues; beads #6065/#5397 report multi-second embedded-mode latency): measure during M1 on a generated 3k-issue database. If list calls take more than 1 s, add narrower list fields or longer poll intervals before M2.
+- **Performance at scale** (1–5k issues; beads #6065/#5397 report multi-second embedded-mode latency): measure during M1 on a generated 3k-issue database. If list calls take more than 1 s, add narrower list fields or longer poll intervals before M2. Measured numbers: [`2026-09-15-beads-performance.md`](2026-09-15-beads-performance.md).
 - **Frequent change signals:** the commit hash also changes on bd housekeeping commits. This is acceptable because reloads are coalesced and cheap.
 - **bd JSON changing between versions:** parsers tolerate unknown fields and keep fixtures per bd version. The `bd-outdated` gate is raised only deliberately.
 - **Rebase burden:** keep beads code in its own files, rebase weekly, and run fork CI on every rebase.
