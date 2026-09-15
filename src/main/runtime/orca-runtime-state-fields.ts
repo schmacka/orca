@@ -21,6 +21,7 @@ import { installRuntimeFileCommandSurface } from './runtime-file-command-surface
 import { installRuntimeGitCommandSurface } from './runtime-git-command-surface'
 import { installRuntimeRepositoryCommandSurface } from './runtime-repository-command-surface'
 import { installRuntimeReviewCommandSurface } from './runtime-review-command-surface'
+import { installRuntimeBeadsCommandSurface } from './runtime-beads-command-surface'
 import { installRuntimeServiceCommandSurface } from './runtime-service-command-surface'
 import {
   RuntimeSkillCommands,
@@ -126,6 +127,7 @@ export class OrcaRuntimeWithStateFields extends OrcaRuntimeWithLinearCommands {
       gitHubIssueComments: this.gitHubIssueComments,
       gitHubProjects: this.gitHubProjectCommands
     })
+    installRuntimeBeadsCommandSurface(runtime, this.beadsCommands)
     installRuntimeServiceCommandSurface(runtime, {
       aiVault: this.aiVault,
       clientEvents: this.clientEvents,

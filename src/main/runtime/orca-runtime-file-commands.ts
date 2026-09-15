@@ -9,6 +9,7 @@ import type { RuntimeTerminalAgentStatus } from '../../shared/runtime-types'
 import { RuntimeHostedReviewCommands } from './runtime-hosted-review-commands'
 import { RuntimeGitHubRepositoryQueryCommands } from './runtime-github-repository-query-commands'
 import { RuntimeGitLabQueryCommands } from './runtime-gitlab-query-commands'
+import { RuntimeBeadsCommands } from './runtime-beads-commands'
 import { recordGitLabProjectRecent } from '../gitlab/gitlab-project-recents'
 import { RuntimeGitLabMutationCommands } from './runtime-gitlab-mutation-commands'
 import { RuntimeGitHubReviewQueryCommands } from './runtime-github-review-query-commands'
@@ -174,6 +175,11 @@ export class OrcaRuntimeWithFileCommands extends OrcaRuntimeWithPreservedBranchC
   })
 
   protected readonly gitLabMutationCommands = new RuntimeGitLabMutationCommands({
+    resolveRepo: (selector) => this.resolveRepoSelector(selector),
+    getLocalGitArgs: (repo) => this.getLocalGitExecutionOptionArgs(repo)
+  })
+
+  protected readonly beadsCommands = new RuntimeBeadsCommands({
     resolveRepo: (selector) => this.resolveRepoSelector(selector),
     getLocalGitArgs: (repo) => this.getLocalGitExecutionOptionArgs(repo)
   })

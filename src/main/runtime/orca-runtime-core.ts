@@ -15,6 +15,7 @@ import type { RuntimeFileCommandSurface } from './runtime-file-command-surface'
 import type { RuntimeGitCommandSurface } from './runtime-git-command-surface'
 import type { RuntimeRepositoryCommandSurface } from './runtime-repository-command-surface'
 import type { RuntimeReviewCommandSurface } from './runtime-review-command-surface'
+import type { RuntimeBeadsCommandSurface } from './runtime-beads-command-surface'
 import type { RuntimeServiceCommandSurface } from './runtime-service-command-surface'
 import type { RuntimeSkillCommandSurface } from './runtime-skill-command-surface'
 
@@ -344,6 +345,7 @@ export type RuntimeInstalledCommandSurfaces = RuntimeEdgeCommandSurface &
   RuntimeGitCommandSurface &
   RuntimeRepositoryCommandSurface &
   RuntimeReviewCommandSurface &
+  RuntimeBeadsCommandSurface &
   RuntimeServiceCommandSurface &
   RuntimeSkillCommandSurface
 
