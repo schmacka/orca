@@ -82,7 +82,14 @@ describe('buildBeadsListRows', () => {
       mode: 'tree',
       collapsed: new Set()
     })
-    expect(rows.map((row) => row.key).sort()).toEqual(['issue:a', 'issue:b'])
+    // Assert the shape, not just the set: a regression that changed cycle-remainder
+    // depth or parentKey would still produce the same two keys.
+    expect(
+      rows.map((row) => ({ key: row.key, depth: row.depth, parentKey: row.parentKey }))
+    ).toEqual([
+      { key: 'issue:a', depth: 0, parentKey: null },
+      { key: 'issue:b', depth: 1, parentKey: 'issue:a' }
+    ])
   })
 
   it('renders a flat list at depth zero', () => {
