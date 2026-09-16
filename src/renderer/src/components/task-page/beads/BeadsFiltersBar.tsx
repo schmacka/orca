@@ -221,23 +221,19 @@ export function BeadsFiltersBar(props: BeadsFiltersBarProps): React.JSX.Element 
             disabled={unavailable('parent')}
           />
           <DropdownMenuContent align="start">
-            {/* Scroll on a plain element: no-restyle rejects scrollbar utilities on the primitive,
-                while require-styled-vertical-scrollbar demands one wherever overflow-y is set. */}
-            <div className="max-h-72 overflow-y-auto scrollbar-sleek">
-              <DropdownMenuRadioGroup
-                value={filters.parent ?? ANY}
-                onValueChange={(value) => setFilter('parent', value === ANY ? null : value)}
-              >
-                <DropdownMenuRadioItem value={ANY}>
-                  {translate('auto.components.task-page.beads.filterAny', 'Any')}
+            <DropdownMenuRadioGroup
+              value={filters.parent ?? ANY}
+              onValueChange={(value) => setFilter('parent', value === ANY ? null : value)}
+            >
+              <DropdownMenuRadioItem value={ANY}>
+                {translate('auto.components.task-page.beads.filterAny', 'Any')}
+              </DropdownMenuRadioItem>
+              {props.epicOptions.map((epic) => (
+                <DropdownMenuRadioItem key={epic.id} value={epic.id}>
+                  {`${epic.id} · ${epic.title}`}
                 </DropdownMenuRadioItem>
-                {props.epicOptions.map((epic) => (
-                  <DropdownMenuRadioItem key={epic.id} value={epic.id}>
-                    {`${epic.id} · ${epic.title}`}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </div>
+              ))}
+            </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
         <DropdownMenu>
@@ -247,33 +243,29 @@ export function BeadsFiltersBar(props: BeadsFiltersBarProps): React.JSX.Element 
             disabled={unavailable('labels')}
           />
           <DropdownMenuContent align="start">
-            {/* Scroll on a plain element: no-restyle rejects scrollbar utilities on the primitive,
-                while require-styled-vertical-scrollbar demands one wherever overflow-y is set. */}
-            <div className="max-h-72 overflow-y-auto scrollbar-sleek">
-              <DropdownMenuLabel>
-                {translate(
-                  'auto.components.task-page.beads.filterLabelsHint',
-                  'Issues must have all selected labels'
-                )}
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {props.labelOptions.map((label) => (
-                <DropdownMenuCheckboxItem
-                  key={label}
-                  checked={filters.labels.includes(label)}
-                  onCheckedChange={(checked) =>
-                    setFilter(
-                      'labels',
-                      checked === true
-                        ? [...filters.labels, label]
-                        : filters.labels.filter((entry) => entry !== label)
-                    )
-                  }
-                >
-                  {label}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </div>
+            <DropdownMenuLabel>
+              {translate(
+                'auto.components.task-page.beads.filterLabelsHint',
+                'Issues must have all selected labels'
+              )}
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {props.labelOptions.map((label) => (
+              <DropdownMenuCheckboxItem
+                key={label}
+                checked={filters.labels.includes(label)}
+                onCheckedChange={(checked) =>
+                  setFilter(
+                    'labels',
+                    checked === true
+                      ? [...filters.labels, label]
+                      : filters.labels.filter((entry) => entry !== label)
+                  )
+                }
+              >
+                {label}
+              </DropdownMenuCheckboxItem>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
         <input

@@ -58,6 +58,15 @@ describe('BeadsFiltersBar', () => {
     ).toBeInTheDocument()
   })
 
+  it('disables only the epic filter while searching', () => {
+    renderBar({ view: 'search', text: 'playtest' })
+    expect(screen.getByRole('button', { name: /Epic/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /Type/ })).toBeEnabled()
+    expect(screen.getByRole('button', { name: /Priority/ })).toBeEnabled()
+    expect(screen.getByRole('button', { name: /Labels/ })).toBeEnabled()
+    expect(screen.getByPlaceholderText('Assignee')).toBeEnabled()
+  })
+
   it('shows a parent that is not in the epic options', () => {
     renderBar({
       filters: { ...EMPTY_BEADS_FILTERS, parent: 'orca-q9' },
