@@ -119,4 +119,42 @@ describe('installWindowVisibilityTimeoutPoller', () => {
     expect(setTimeoutMock).toHaveBeenCalledTimes(1)
     cleanup()
   })
+
+  it('keeps polling at hiddenDelayMs while hidden when that option is set', async () => {
+    let visibilityState: DocumentVisibilityState = 'hidden'
+    const run = vi.fn().mockResolvedValue(undefined)
+    const setTimeoutMock = vi.fn(() => 1 as unknown as ReturnType<typeof setTimeout>)
+
+    vi.stubGlobal('window', { addEventListener: vi.fn(), removeEventListener: vi.fn() })
+    vi.stubGlobal('document', {
+      get visibilityState() {
+        return visibilityState
+      },
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn()
+    })
+
+    const cleanup = installWindowVisibilityTimeoutPoller({
+      run,
+      getDelayMs: () => 5000,
+      hiddenDelayMs: 60_000,
+      setTimeoutFn: setTimeoutMock,
+      clearTimeoutFn: vi.fn()
+    })
+
+    expect(run).toHaveBeenCalledTimes(1)
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(setTimeoutMock).toHaveBeenLastCalledWith(expect.any(Function), 60_000)
+
+    visibilityState = 'visible'
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: test timer handle and captured scheduled callback
+    const scheduled = setTimeoutMock.mock.calls.at(-1)?.[0] as () => void
+    scheduled()
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(run).toHaveBeenCalledTimes(2)
+    expect(setTimeoutMock).toHaveBeenLastCalledWith(expect.any(Function), 5000)
+    cleanup()
+  })
 })

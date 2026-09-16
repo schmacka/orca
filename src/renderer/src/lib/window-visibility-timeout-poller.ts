@@ -5,6 +5,8 @@ export type WindowVisibilityTimeoutPollerTimer = ReturnType<typeof setTimeout>
 export function installWindowVisibilityTimeoutPoller(args: {
   run: () => Promise<void> | void
   getDelayMs: () => number
+  /** When set, keep polling while hidden at this delay instead of pausing. */
+  hiddenDelayMs?: number
   setTimeoutFn?: (callback: () => void, delayMs: number) => WindowVisibilityTimeoutPollerTimer
   clearTimeoutFn?: (handle: WindowVisibilityTimeoutPollerTimer) => void
 }): () => void {
@@ -19,6 +21,11 @@ export function installWindowVisibilityTimeoutPoller(args: {
   let disposed = false
   let inFlight = false
 
+  const pollsWhileHidden = args.hiddenDelayMs !== undefined
+  const canPoll = (): boolean => pollsWhileHidden || isWindowVisible()
+  const nextDelayMs = (): number =>
+    isWindowVisible() ? args.getDelayMs() : (args.hiddenDelayMs ?? args.getDelayMs())
+
   const clearScheduledPoll = (): void => {
     if (!timeoutId) {
       return
@@ -29,18 +36,18 @@ export function installWindowVisibilityTimeoutPoller(args: {
 
   const schedulePoll = (): void => {
     clearScheduledPoll()
-    if (disposed || !isWindowVisible()) {
+    if (disposed || !canPoll()) {
       return
     }
     timeoutId = setTimeoutFn(() => {
       timeoutId = null
       runAndSchedule()
-    }, args.getDelayMs())
+    }, nextDelayMs())
   }
 
   function runAndSchedule(): void {
     clearScheduledPoll()
-    if (disposed || !isWindowVisible() || inFlight) {
+    if (disposed || !canPoll() || inFlight) {
       return
     }
     inFlight = true
@@ -53,6 +60,8 @@ export function installWindowVisibilityTimeoutPoller(args: {
   const reconcileVisibility = (): void => {
     if (isWindowVisible()) {
       runAndSchedule()
+    } else if (pollsWhileHidden) {
+      schedulePoll()
     } else {
       clearScheduledPoll()
     }
