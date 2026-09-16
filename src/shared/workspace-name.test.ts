@@ -80,6 +80,18 @@ describe('getLinkedWorkItemWorkspaceName', () => {
       seedName: 'proj-7-fix-flaky-import'
     })
   })
+
+  it('names a bead by its identifier, not "Issue 0"', () => {
+    expect(
+      getLinkedWorkItemWorkspaceName({
+        provider: 'beads',
+        type: 'issue',
+        number: 0,
+        title: 'Run the playtest',
+        beadsIdentifier: 'cwf.3'
+      })?.displayName
+    ).toContain('cwf.3')
+  })
 })
 
 describe('getWorkspaceIntentName', () => {

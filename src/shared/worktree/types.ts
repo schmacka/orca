@@ -1,5 +1,6 @@
 import type { ExecutionHostId } from '../execution-host'
 import type { AutomationExecutionTargetType } from '../automations-types'
+import type { TaskProvider } from '../task-providers'
 import type { TaskSourceContext } from '../task-source-context'
 import type { TuiAgent } from '../tui-agent'
 import type { DiffComment, MobileDiffReviewState } from '../diff-comment-types'
@@ -8,14 +9,17 @@ import type { BuiltInWorktreeVisibilitySourceId } from '../repo-types'
 import type { WorktreeIdentity } from './identity'
 
 export type WorkspaceLinkedItem = {
-  provider: 'github' | 'gitlab' | 'linear' | 'jira'
+  provider: 'github' | 'gitlab' | 'linear' | 'jira' | 'beads'
   type: 'issue' | 'pr' | 'mr'
   number: number
   title: string
   url: string
   linearIdentifier?: string
   jiraIdentifier?: string
+  beadsIdentifier?: string
   repoId?: string
+  /** Rendered provider context for the agent's first prompt; not revalidated by normalizeWorkspaceLinkedItem. */
+  linkedContext?: { provider: TaskProvider; version: 1; renderedText: string }
 }
 
 // ─── Worktree (git-level) ────────────────────────────────────────────
