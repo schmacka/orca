@@ -74,8 +74,7 @@ export function toFolderWorkspaceLinkedTask(
     ...(item.linearIdentifier ? { linearIdentifier: item.linearIdentifier } : {}),
     ...(item.jiraIdentifier ? { jiraIdentifier: item.jiraIdentifier } : {}),
     ...(item.beadsIdentifier ? { beadsIdentifier: item.beadsIdentifier } : {}),
-    ...(item.repoId ? { repoId: item.repoId } : {}),
-    ...(item.linkedContext ? { linkedContext: item.linkedContext } : {})
+    ...(item.repoId ? { repoId: item.repoId } : {})
   }
 }
 

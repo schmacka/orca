@@ -4,6 +4,33 @@ import type { BeadsResult } from '../../../../shared/beads/beads-contract'
 import type { BeadsIssueDetails } from '../../../../shared/beads/beads-issue-types'
 import type { BeadsRepoRef } from '@/runtime/runtime-beads-client'
 
+function issueDetails(): BeadsIssueDetails {
+  return {
+    issue: {
+      id: 'cwf.3',
+      title: 'Test issue',
+      status: 'in_progress',
+      priority: 1,
+      issueType: 'task',
+      labels: [],
+      createdAt: '2026-09-16T00:00:00.000Z',
+      updatedAt: '2026-09-16T00:00:00.000Z',
+      dependencyCount: 0,
+      dependentCount: 0,
+      commentCount: 0,
+      blockedBy: [],
+      dependencyEdges: []
+    },
+    dependencies: [],
+    dependents: [],
+    comments: []
+  }
+}
+
+function okResult(): BeadsResult<BeadsIssueDetails> {
+  return { ok: true, value: issueDetails() }
+}
+
 const mocks = vi.hoisted(() => {
   const closeBeadsIssue =
     vi.fn<
@@ -102,7 +129,7 @@ describe('runBeadsDisposition', () => {
   })
 
   it('calls unclaimBeadsIssue for unclaim disposition', async () => {
-    mocks.unclaimBeadsIssue.mockResolvedValue({ ok: true, value: {} as BeadsIssueDetails })
+    mocks.unclaimBeadsIssue.mockResolvedValue(okResult())
 
     await runBeadsDisposition({
       disposition: 'unclaim',
@@ -115,7 +142,7 @@ describe('runBeadsDisposition', () => {
   })
 
   it('calls closeBeadsIssue for close disposition with reason', async () => {
-    mocks.closeBeadsIssue.mockResolvedValue({ ok: true, value: {} as BeadsIssueDetails })
+    mocks.closeBeadsIssue.mockResolvedValue(okResult())
 
     await runBeadsDisposition({
       disposition: 'close',
