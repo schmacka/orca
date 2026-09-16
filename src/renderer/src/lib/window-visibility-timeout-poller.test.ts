@@ -152,6 +152,9 @@ describe('installWindowVisibilityTimeoutPoller', () => {
 
     visibilityState = 'visible'
     const scheduled = setTimeoutMock.mock.calls.at(-1)?.[0]
+    if (!scheduled) {
+      throw new Error('expected the poller to schedule a hidden-cadence poll')
+    }
     scheduled()
     await Promise.resolve()
     await Promise.resolve()
