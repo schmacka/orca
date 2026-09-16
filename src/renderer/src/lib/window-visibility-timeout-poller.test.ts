@@ -123,8 +123,8 @@ describe('installWindowVisibilityTimeoutPoller', () => {
   it('keeps polling at hiddenDelayMs while hidden when that option is set', async () => {
     let visibilityState: DocumentVisibilityState = 'hidden'
     const run = vi.fn().mockResolvedValue(undefined)
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: fake timer id is never dereferenced, only handed back to mock clearTimeoutFn
     const setTimeoutMock = vi.fn(
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: fake timer id is never dereferenced, only handed back to mock clearTimeoutFn
       (_cb: () => void, _delay: number) => 1 as unknown as ReturnType<typeof setTimeout>
     )
 
