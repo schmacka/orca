@@ -103,7 +103,9 @@ describe('BeadsListPane', () => {
     const props = renderPane()
     fireEvent.click(screen.getByText('Title x'))
     expect(props.onSelectKey).toHaveBeenCalledWith('issue:x')
-    fireEvent.click(screen.getByRole('button', { name: 'Collapse e1' }))
+    // The chevron is aria-hidden (it lives inside a role="option"), so it is invisible
+    // to role queries by design — reach it by its title instead.
+    fireEvent.click(screen.getByTitle('Collapse e1'))
     expect(props.onToggleKey).toHaveBeenCalledWith('issue:e1', false)
     expect(props.onSelectKey).toHaveBeenCalledTimes(1)
   })
