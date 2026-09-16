@@ -33,6 +33,7 @@
 - Import a type and values from the same module in one statement with inline `type`. Every `as` needs `// oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: …` directly above it; `as const` is fine.
 - No new `// @ts-nocheck`. No repo-wide `pnpm format` — format only changed files (`pnpm exec oxfmt <files>`).
 - Machine has 8 GB RAM: run only the named test files, never the whole suite; the fork CI runs everything on push.
+- **Implementers never run `pnpm tc` or `pnpm lint`.** Both take longer than the 600 s subagent stall watchdog on this machine, which kills the agent mid-run (it happened on Task 1). The controller runs them between tasks and hands the error list back as a file. Implementers run only the scoped test paths their task names, one command at a time, each with an explicit 300000 ms timeout.
 - Commit trailers, exactly:
   ```
   Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
@@ -352,7 +353,7 @@ vi.mock('./runtime-rpc-client', () => ({
   // own so `instanceof` still classifies (same shape as remote-agent-session-launch.test.ts).
   RuntimeRpcCallError: class RuntimeRpcCallError extends Error {
     code: string
-    constructor(response: { error: { code: string; message: string } }) {
+    constructor(response: { id: string; ok: false; error: { code: string; message: string } }) {
       super(response.error.message)
       this.code = response.error.code
     }
@@ -469,7 +470,11 @@ describe('beads runtime client', () => {
 
   it('reports a refused RPC as failed, not as an offline host', async () => {
     mocks.callRuntimeRpc.mockRejectedValue(
+      // RuntimeRpcFailure needs id and ok:false — the imported symbol carries the real
+      // constructor's type even though the module is mocked at runtime.
       new RuntimeRpcCallError({
+        id: 'rpc-1',
+        ok: false,
         error: { code: 'forbidden', message: 'scope does not allow beads.getStatus' }
       })
     )
@@ -801,14 +806,14 @@ describe('beads slice', () => {
     client.beadsListIssues.mockResolvedValue(page(['a']))
     await store.getState().pollBeadsChangeToken(REPO)
     for (let index = 0; index < BEADS_LIST_CACHE_MAX + 3; index += 1) {
-      await store.getState().loadBeadsList(REPO, { ...REQUEST, filter: { text: `q${index}` } })
+      await store.getState().loadBeadsList(REPO, { ...REQUEST, text: `q${index}` })
     }
     const lists = selectBeadsRepoState(store.getState(), 'r1').lists
     expect(Object.keys(lists)).toHaveLength(BEADS_LIST_CACHE_MAX)
     // The newest key survives, the first ones were dropped.
-    expect(lists[beadsListKey({ ...REQUEST, filter: { text: 'q0' } })]).toBeUndefined()
+    expect(lists[beadsListKey({ ...REQUEST, text: 'q0' })]).toBeUndefined()
     expect(
-      lists[beadsListKey({ ...REQUEST, filter: { text: `q${BEADS_LIST_CACHE_MAX + 2}` } })]
+      lists[beadsListKey({ ...REQUEST, text: `q${BEADS_LIST_CACHE_MAX + 2}` })]
     ).toBeDefined()
   })
 })
@@ -1455,7 +1460,7 @@ Tree rules (spec §4.1):
 - An issue whose parent is also in the result renders under that parent (recursively), in result order.
 - Children of a parent that is **not** in the result are grouped under a greyed **context** row for that parent at depth 0 (title from the tree index when known).
 - A collapsed row (key in `collapsed`) hides its whole subtree.
-- Parent cycles never hide issues: anything not emitted and not hidden is emitted at depth 0 at the end.
+- Parent cycles never hide issues: anything not emitted and not hidden enters `emitIssue` at depth 0 at the end. Note what that produces for a cycle a↔b: `a` is emitted at depth 0 and `b` is then emitted as `a`'s child at depth 1 (the wrap-around edge back to `a` is filtered because `a` is already in `emitted`). The guarantee is termination with every issue visible exactly once — not that every cycle member sits at depth 0.
 - Flat mode: every issue at depth 0, no children.
 - Progress for a parent = closed children / all children in the tree index (which includes closed issues).
 
@@ -1547,7 +1552,12 @@ describe('buildBeadsListRows', () => {
       mode: 'tree',
       collapsed: new Set()
     })
-    expect(rows.map((row) => row.key).sort()).toEqual(['issue:a', 'issue:b'])
+    // Assert the shape, not just the set: a regression that changed cycle-remainder
+    // depth or parentKey would still produce the same two keys.
+    expect(rows.map((row) => ({ key: row.key, depth: row.depth, parentKey: row.parentKey }))).toEqual([
+      { key: 'issue:a', depth: 0, parentKey: null },
+      { key: 'issue:b', depth: 1, parentKey: 'issue:a' }
+    ])
   })
 
   it('renders a flat list at depth zero', () => {
@@ -1965,17 +1975,40 @@ import type { BeadsIssue } from '../../../../../shared/beads/beads-issue-types'
 import { BeadsListPane } from './BeadsListPane'
 import { buildBeadsListRows } from './beads-tree-rows'
 
+// Why: a mock that always renders every row cannot tell "current row rendered" from
+// "current row virtualized out", and would pass even if the component ignored the
+// virtualizer entirely. `virtual.window` narrows the rendered slice on demand, and
+// scrollToIndex is a stable spy so the scroll-into-view effect can be asserted.
+// Why a full-range window instead of `null`: a nullable property would need either a
+// type assertion (which the repo forbids) or an annotation, because TypeScript narrows
+// an initializer of `null` to `null`. A default window that spans everything keeps the
+// type plain `{ start: number; end: number }` and needs neither.
+const virtual = vi.hoisted(() => ({
+  window: { start: 0, end: Number.MAX_SAFE_INTEGER },
+  scrollToIndex: vi.fn((_index: number) => {})
+}))
+
 vi.mock('@tanstack/react-virtual', () => ({
   useVirtualizer: ({ count }: { count: number }) => ({
     getTotalSize: () => count * 36,
-    getVirtualItems: () =>
-      Array.from({ length: count }, (_, index) => ({ index, key: index, start: index * 36 })),
+    getVirtualItems: () => {
+      const items = Array.from({ length: count }, (_, index) => ({
+        index,
+        key: index,
+        start: index * 36
+      }))
+      return items.slice(virtual.window.start, virtual.window.end)
+    },
     measureElement: () => {},
-    scrollToIndex: vi.fn()
+    scrollToIndex: virtual.scrollToIndex
   })
 }))
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  virtual.window = { start: 0, end: Number.MAX_SAFE_INTEGER }
+  virtual.scrollToIndex.mockClear()
+})
 
 function issue(id: string, parent?: string): BeadsIssue {
   return {
@@ -2035,9 +2068,23 @@ describe('BeadsListPane', () => {
     expect(screen.getByRole('option', { name: /Title e1/ })).toHaveAttribute('data-current', 'true')
   })
 
-  it('drops aria-activedescendant when the current row is outside the virtual window', () => {
+  it('drops aria-activedescendant when the current key matches no row', () => {
     renderPane({ currentKey: 'issue:not-rendered' })
     expect(screen.getByRole('listbox')).not.toHaveAttribute('aria-activedescendant')
+  })
+
+  it('renders only the virtual window and drops aria-activedescendant for a row outside it', () => {
+    // The row exists in the data; the virtualizer just has not rendered it. Pointing
+    // aria-activedescendant at an id with no DOM node announces nothing.
+    virtual.window = { start: 0, end: 1 }
+    renderPane({ currentKey: 'issue:c1' })
+    expect(screen.getAllByRole('option')).toHaveLength(1)
+    expect(screen.getByRole('listbox')).not.toHaveAttribute('aria-activedescendant')
+  })
+
+  it('scrolls the current row into view when the selection changes', () => {
+    renderPane({ currentKey: 'issue:x' })
+    expect(virtual.scrollToIndex).toHaveBeenCalledWith(2)
   })
 
   it('hides the expand chevron from assistive tech (the option owns the row)', () => {
@@ -2061,7 +2108,9 @@ describe('BeadsListPane', () => {
     const props = renderPane()
     fireEvent.click(screen.getByText('Title x'))
     expect(props.onSelectKey).toHaveBeenCalledWith('issue:x')
-    fireEvent.click(screen.getByRole('button', { name: 'Collapse e1' }))
+    // The chevron is aria-hidden (it lives inside a role="option"), so it is invisible
+    // to role queries by design — reach it by its title instead.
+    fireEvent.click(screen.getByTitle('Collapse e1'))
     expect(props.onToggleKey).toHaveBeenCalledWith('issue:e1', false)
     expect(props.onSelectKey).toHaveBeenCalledTimes(1)
   })
@@ -2193,7 +2242,12 @@ export function BeadsIssueRow({
         <span aria-hidden className="size-5 shrink-0" />
       )}
       {StatusIcon && category ? (
-        <StatusIcon aria-hidden className={cn('size-3.5 shrink-0', beadsStatusToneClass(category))} />
+        {/* createElement, not <StatusIcon/>: react/static-components (error) rejects a
+            component value created during render. */}
+        {React.createElement(StatusIcon, {
+          'aria-hidden': true,
+          className: cn('size-3.5 shrink-0', beadsStatusToneClass(category))
+        })}
       ) : null}
       <span className="shrink-0 font-mono text-[12px] text-muted-foreground">{id}</span>
       <span
@@ -2731,7 +2785,7 @@ export function BeadsFiltersBar(props: BeadsFiltersBarProps): React.JSX.Element 
             value={epicTitle}
             disabled={unavailable('parent')}
           />
-          <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
+          <DropdownMenuContent align="start">
             <DropdownMenuRadioGroup
               value={filters.parent ?? ANY}
               onValueChange={(value) => setFilter('parent', value === ANY ? null : value)}
@@ -2753,7 +2807,7 @@ export function BeadsFiltersBar(props: BeadsFiltersBarProps): React.JSX.Element 
             value={filters.labels.length > 0 ? filters.labels.join(', ') : null}
             disabled={unavailable('labels')}
           />
-          <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
+          <DropdownMenuContent align="start">
             <DropdownMenuLabel>
               {translate('auto.components.task-page.beads.filterLabelsHint', 'Issues must have all selected labels')}
             </DropdownMenuLabel>
@@ -2806,7 +2860,7 @@ export function BeadsFiltersBar(props: BeadsFiltersBarProps): React.JSX.Element 
 
 Notes for the implementer:
 - The two text fields are plain `<input>` elements on purpose: `shadcn/no-restyle` forbids padding/size classes on the `Input` primitive, and these fields need a compact 28 px height with an icon inset. If the design-system scan still flags them, switch to `<Input className="w-56" />` and accept the default height.
-- `DropdownMenuContent className="max-h-72 overflow-y-auto"` is layout-only (size/overflow); if `shadcn/no-restyle` flags it, remove the class.
+- **Pass no `className` to `DropdownMenuContent` and add no scroll wrapper.** The primitive already ships `max-h-(--radix-dropdown-menu-content-available-height) overflow-x-hidden overflow-y-auto scrollbar-sleek` in its base classes (`src/renderer/src/components/ui/dropdown-menu.tsx:34`), so the Epic and Labels menus scroll correctly on their own, capped to the space actually available on screen. Adding `max-h-72 overflow-y-auto` there trips `shadcn/no-restyle`, and adding `scrollbar-sleek` to satisfy `require-styled-vertical-scrollbar` trips it too — both rules are already satisfied by the primitive itself, so the right amount of code is none.
 - The `epicTitle` value shows the selected epic's id on the trigger (titles can be long), taken straight from `filters.parent` so a parent that is not in `epicOptions` — index still loading, or a non-epic parent — still reads back.
 - If the file exceeds 400 lines after formatting, move `presetLabel` and `FilterTrigger` into `beads-filters-bar-parts.tsx`.
 
@@ -2913,10 +2967,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { FALLBACK_BEADS_SCHEMA } from '../../../../../shared/beads/beads-schema'
 
-const mocks = vi.hoisted(() => ({
-  state: {} as Record<string, unknown>,
-  loadBeadsDetails: vi.fn()
-}))
+const mocks = vi.hoisted(() => {
+  // Typed local, not `as`: the repo forbids type assertions. Unlike a `null`
+  // initializer (which narrows to `null`), `{}` keeps the declared record type.
+  const state: Record<string, unknown> = {}
+  return { state, loadBeadsDetails: vi.fn() }
+})
 
 vi.mock('@/store', () => ({
   useAppStore: (selector: (state: Record<string, unknown>) => unknown) => selector(mocks.state)
@@ -2930,7 +2986,7 @@ import { BeadsDetailPane } from './BeadsDetailPane'
 
 const REPO = { id: 'r1', path: '/work/app', connectionId: null, executionHostId: null }
 
-const DETAILS = {
+const DETAILS: BeadsIssueDetails = {
   issue: {
     id: 'cwf.3',
     title: 'Run the playtest',
@@ -3093,7 +3149,12 @@ function RelationRow({
       onClick={() => onOpenIssue(relation.id)}
       className="flex min-h-8 w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-[13px] hover:bg-accent"
     >
-      <Icon aria-hidden className={cn('size-3.5 shrink-0', beadsStatusToneClass(category))} />
+      {/* createElement, not <Icon/>: react/static-components (error) rejects a component
+          value created during render. Same workaround as BeadsIssueRow.tsx. */}
+      {React.createElement(Icon, {
+        'aria-hidden': true,
+        className: cn('size-3.5 shrink-0', beadsStatusToneClass(category))
+      })}
       <span className="shrink-0 font-mono text-[12px] text-muted-foreground">{relation.id}</span>
       <span className="min-w-0 flex-1 truncate">{relation.title}</span>
       {showType ? (
@@ -3175,14 +3236,19 @@ export function BeadsDetailSections({ details, schema, onOpenIssue }: SectionsPr
     <div className="flex flex-col gap-4 p-4">
       <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground">
-          <Button variant="ghost" size="xs" onClick={() => void copyId()}>
+          <Button
+            variant="ghost"
+            size="xs"
+            aria-label={translate('auto.components.task-page.beads.copyIdLabel', 'Copy issue ID')}
+            onClick={() => void copyId()}
+          >
             <span className="font-mono">{issue.id}</span>
             <Copy aria-hidden className="size-3" />
           </Button>
           <span>{issue.issueType}</span>
           <span>{`P${issue.priority}`}</span>
           <span className={cn('inline-flex items-center gap-1', beadsStatusToneClass(category))}>
-            <StatusIcon aria-hidden className="size-3.5" />
+            {React.createElement(StatusIcon, { 'aria-hidden': true, className: 'size-3.5' })}
             {issue.status}
           </span>
           {issue.labels.map((label) => (
@@ -3462,8 +3528,12 @@ import '@testing-library/jest-dom/vitest'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 
+// Why mutable: a mock pinned to one width can never render the narrow branch, so a
+// layout that split into per-breakpoint trees would still pass every test.
+const measured = vi.hoisted(() => ({ width: 1200 }))
+
 vi.mock('@/components/right-sidebar/right-sidebar-measured-width', () => ({
-  useMeasuredWidth: (onWidth: (width: number | null) => void) => () => onWidth(1200)
+  useMeasuredWidth: (onWidth: (width: number | null) => void) => () => onWidth(measured.width)
 }))
 
 import { BeadsSplitLayout, isBeadsSplitWide } from './BeadsSplitLayout'
@@ -3491,6 +3561,25 @@ describe('BeadsSplitLayout', () => {
   it('shows an empty-state hint when nothing is selected', () => {
     render(<BeadsSplitLayout list={<div>LIST</div>} detail={null} detailTitle="" onCloseDetail={vi.fn()} />)
     expect(screen.getByText('Select an issue to see its details')).toBeInTheDocument()
+  })
+
+  it('moves the detail into a drawer when narrow and keeps the list in the same tree', () => {
+    // The point of the one-tree design: below the breakpoint the list must still be
+    // rendered from the same <aside>, not re-created inside a narrow-only branch.
+    measured.width = 800
+    render(
+      <BeadsSplitLayout
+        list={<div>LIST</div>}
+        detail={<div>DETAIL</div>}
+        detailTitle="cwf.3"
+        onCloseDetail={vi.fn()}
+      />
+    )
+    expect(screen.getByText('LIST')).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByText('DETAIL')).toBeInTheDocument()
+    // No resize handle in the drawer layout — that affordance is wide-only.
+    expect(screen.queryByRole('separator')).toBeNull()
   })
 })
 ```
@@ -3736,7 +3825,7 @@ export function BeadsSplitLayout({
         </section>
       ) : (
         <Sheet open={detail !== null} onOpenChange={(open) => !open && onCloseDetail()}>
-          <SheetContent side="right" className="w-full p-0 sm:max-w-[640px]">
+          <SheetContent side="right" className="w-full sm:max-w-[640px]">
             {/* Radix requires a title; VisuallyHidden.Root is how the rest of the app hides it. */}
             <VisuallyHidden.Root asChild>
               <SheetTitle>{detailTitle}</SheetTitle>
@@ -3750,7 +3839,7 @@ export function BeadsSplitLayout({
 }
 ```
 
-`SheetContent` / `SheetTitle`: both shapes copy `src/renderer/src/components/linear-item-drawer-sheet.tsx:85-98` — the same `w-full p-0 sm:max-w-[640px]` width classes and `VisuallyHidden.Root asChild` around the title. Do not put `className="sr-only"` on `SheetTitle`: typography/visibility classes on a `components/ui` primitive are exactly what `shadcn/no-restyle` (`allow: ["layout"]`) rejects, and the gate runs on changed lines. If `check:code-quality:changed` also flags `p-0`, move the padding reset to an inner `<div className="p-0">` wrapper and leave `SheetContent` with only the width classes. If `useSidebarResize`'s generic requires `HTMLDivElement`, use `<HTMLDivElement>` and render the list container as a `<div>` instead of `<aside>`.
+`SheetContent` / `SheetTitle`: copy the `VisuallyHidden.Root asChild` title shape from `src/renderer/src/components/linear-item-drawer-sheet.tsx:85-98`, but **not** its `p-0`: `shadcn/no-restyle` rejects padding on `SheetContent` ("<SheetContent> owns its spacing"), and `sheetContentVariants` carries no padding anyway (`ui/sheet.tsx:52`), so `p-0` is a no-op that only survives in that file because the gate checks changed lines only. Width classes (`w-full sm:max-w-[640px]`) are layout and allowed. Do not put `className="sr-only"` on `SheetTitle`: typography/visibility classes on a `components/ui` primitive are exactly what `shadcn/no-restyle` (`allow: ["layout"]`) rejects, and the gate runs on changed lines. If `check:code-quality:changed` also flags `p-0`, move the padding reset to an inner `<div className="p-0">` wrapper and leave `SheetContent` with only the width classes. If `useSidebarResize`'s generic requires `HTMLDivElement`, use `<HTMLDivElement>` and render the list container as a `<div>` instead of `<aside>`.
 
 - [ ] **Step 5: Run tests and lint**
 
@@ -3887,21 +3976,23 @@ describe('beads list mode storage', () => {
 // @vitest-environment happy-dom
 import '@testing-library/jest-dom/vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
-const mocks = vi.hoisted(() => ({
-  state: {} as Record<string, unknown>,
-  loadBeadsStatus: vi.fn(),
-  loadBeadsSchema: vi.fn(),
-  pollBeadsChangeToken: vi.fn(),
-  loadBeadsList: vi.fn(),
-  loadBeadsDetails: vi.fn(),
-  installPoller: vi.fn(() => () => {})
-}))
+const mocks = vi.hoisted(() => {
+  // Typed local, not `as`: the repo forbids type assertions. Unlike a `null`
+  // initializer (which narrows to `null`), `{}` keeps the declared record type.
+  const state: Record<string, unknown> = {}
+  return { state, loadBeadsStatus: vi.fn(), loadBeadsSchema: vi.fn(), pollBeadsChangeToken: vi.fn(), loadBeadsList: vi.fn(), loadBeadsDetails: vi.fn(), installPoller: vi.fn(() => () => {}) }
+})
 
+// getState is part of the surface: refresh() re-reads the token through it after
+// polling. A bare function mock makes any refresh test throw instead of fail.
 vi.mock('@/store', () => ({
-  useAppStore: (selector: (state: Record<string, unknown>) => unknown) => selector(mocks.state)
+  useAppStore: Object.assign(
+    (selector: (state: Record<string, unknown>) => unknown) => selector(mocks.state),
+    { getState: () => mocks.state }
+  )
 }))
 vi.mock('@/lib/window-visibility-timeout-poller', () => ({
   installWindowVisibilityTimeoutPoller: mocks.installPoller
@@ -3914,18 +4005,32 @@ vi.mock('@tanstack/react-virtual', () => ({
     scrollToIndex: () => {}
   })
 }))
+// Why mutable: a mock pinned to one width can never render the narrow branch, so a
+// layout that split into per-breakpoint trees would still pass every test.
+const measured = vi.hoisted(() => ({ width: 1200 }))
+
 vi.mock('@/components/right-sidebar/right-sidebar-measured-width', () => ({
-  useMeasuredWidth: (onWidth: (width: number | null) => void) => () => onWidth(1200)
+  useMeasuredWidth: (onWidth: (width: number | null) => void) => () => onWidth(measured.width)
 }))
 vi.mock('@/components/sidebar/CommentMarkdown', () => ({
   default: ({ content }: { content: string }) => <div>{content}</div>
 }))
 
+import type { Repo } from '../../../../../shared/repo-types'
 import { BEADS_TREE_INDEX_REQUEST } from './beads-list-request'
 import { BeadsTaskPageBody } from './BeadsTaskPageBody'
 
-// oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the body only reads id, path, displayName, connectionId and executionHostId.
-const REPO = { id: 'r1', path: '/work/app', displayName: 'app', connectionId: null, executionHostId: null } as never
+// A real Repo: only id, path, displayName, badgeColor and addedAt are required, so the
+// fixture needs no cast — and spreading it for a second repo stays type-safe.
+const REPO: Repo = {
+  id: 'r1',
+  path: '/work/app',
+  displayName: 'app',
+  badgeColor: '#4f46e5',
+  addedAt: 0,
+  connectionId: null,
+  executionHostId: null
+}
 
 // What the hook and the store actions actually receive: the four routing fields, memoized.
 const REPO_REF = { id: 'r1', path: '/work/app', connectionId: null, executionHostId: null }
@@ -3936,18 +4041,32 @@ function issue(id: string, parent?: string) {
   return { id, title: `Title ${id}`, status: 'open', priority: 2, issueType: id.startsWith('e') ? 'epic' : 'task', labels: ['ui'], parent, createdAt: '', updatedAt: '', dependencyCount: 0, dependentCount: 0, commentCount: 0, blockedBy: [], dependencyEdges: [] }
 }
 
-function installState(status: unknown, lists: Record<string, unknown> = {}) {
+// Held in a typed local so a test can move the token (`repoState.changeToken = 'h2'`)
+// without reaching through `mocks.state`, whose values are `unknown`.
+let repoState: {
+  status: unknown
+  schema: { data: null; error: null; loading: false; token: null }
+  changeToken: string | null
+  pollError: unknown
+  lists: Record<string, unknown>
+  details: Record<string, unknown>
+}
+
+function installState(
+  status: unknown,
+  lists: Record<string, unknown> = {},
+  changeToken: string | null = 'h1'
+) {
+  repoState = {
+    status,
+    schema: { data: null, error: null, loading: false, token: null },
+    changeToken,
+    pollError: null,
+    lists,
+    details: {}
+  }
   mocks.state = {
-    beadsRepos: {
-      r1: {
-        status,
-        schema: { data: null, error: null, loading: false, token: null },
-        changeToken: 'h1',
-        pollError: null,
-        lists,
-        details: {}
-      }
-    },
+    beadsRepos: { r1: repoState },
     loadBeadsStatus: mocks.loadBeadsStatus,
     loadBeadsSchema: mocks.loadBeadsSchema,
     pollBeadsChangeToken: mocks.pollBeadsChangeToken,
@@ -3956,11 +4075,10 @@ function installState(status: unknown, lists: Record<string, unknown> = {}) {
   }
 }
 
-function renderBody(repos: unknown[] = [REPO]) {
+function renderBody(repos: readonly Repo[] = [REPO]) {
   render(
     <TooltipProvider>
-      {/* oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: fixture repos. */}
-      <BeadsTaskPageBody repos={repos as never} primaryRepoId="r1" onHide={vi.fn()} />
+      <BeadsTaskPageBody repos={repos} primaryRepoId="r1" onHide={vi.fn()} />
     </TooltipProvider>
   )
 }
@@ -3989,8 +4107,9 @@ describe('BeadsTaskPageBody', () => {
   })
 
   it('waits for the first change token before loading anything', () => {
-    installState({ data: READY, error: null, loading: false, token: null })
-    mocks.state.beadsRepos.r1.changeToken = null
+    // Pass the null token in, rather than reaching into `mocks.state` — that field is
+    // typed `unknown`, so mutating through it does not typecheck.
+    installState({ data: READY, error: null, loading: false, token: null }, {}, null)
     renderBody()
     expect(mocks.installPoller).toHaveBeenCalled()
     expect(mocks.loadBeadsList).not.toHaveBeenCalled()
@@ -4030,6 +4149,39 @@ describe('BeadsTaskPageBody', () => {
     expect(mocks.loadBeadsList).toHaveBeenCalledWith(REPO_REF, BEADS_TREE_INDEX_REQUEST)
     fireEvent.click(screen.getByText('Title c1'))
     expect(mocks.loadBeadsDetails).toHaveBeenCalledWith(REPO_REF, 'c1')
+  })
+
+  it('forces both list reloads when the poll leaves the token unchanged', async () => {
+    installState({ data: READY, error: null, loading: false, token: null })
+    renderBody()
+    mocks.loadBeadsList.mockClear()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+
+    await waitFor(() => expect(mocks.pollBeadsChangeToken).toHaveBeenCalledWith(REPO_REF))
+    await waitFor(() =>
+      expect(mocks.loadBeadsList).toHaveBeenCalledWith(REPO_REF, BEADS_TREE_INDEX_REQUEST, {
+        force: true
+      })
+    )
+  })
+
+  it('leaves the reload to the effects when the poll moved the token', async () => {
+    installState({ data: READY, error: null, loading: false, token: null })
+    // The poll finding new data is exactly when forcing would duplicate the work the
+    // [changeToken] effects are about to do.
+    mocks.pollBeadsChangeToken.mockImplementation(async () => {
+      repoState.changeToken = 'h2'
+    })
+    renderBody()
+    mocks.loadBeadsList.mockClear()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+
+    await waitFor(() => expect(mocks.pollBeadsChangeToken).toHaveBeenCalledWith(REPO_REF))
+    expect(mocks.loadBeadsList).not.toHaveBeenCalledWith(REPO_REF, expect.anything(), {
+      force: true
+    })
   })
 
   it('offers a repository picker when several repositories are selected', () => {
