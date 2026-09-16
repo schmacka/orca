@@ -80,6 +80,7 @@ function renderPane(overrides: Partial<Parameters<typeof BeadsListPane>[0]> = {}
     onToggleKey: vi.fn(),
     onOpenKey: vi.fn(),
     onLoadMore: vi.fn(),
+    onStartWorktree: vi.fn(),
     ...overrides
   }
   render(<BeadsListPane {...props} />)
@@ -145,6 +146,14 @@ describe('BeadsListPane', () => {
     fireEvent.click(screen.getByTitle('Collapse e1'))
     expect(props.onToggleKey).toHaveBeenCalledWith('issue:e1', false)
     expect(props.onSelectKey).toHaveBeenCalledTimes(1)
+  })
+
+  it('starts a worktree from the row without selecting it', () => {
+    // Same reach as the chevron above: aria-hidden inside a role="option", so by title.
+    const props = renderPane()
+    fireEvent.click(screen.getByTitle('Start worktree from e1'))
+    expect(props.onStartWorktree).toHaveBeenCalledWith(expect.objectContaining({ id: 'e1' }))
+    expect(props.onSelectKey).not.toHaveBeenCalled()
   })
 
   it('offers Load more when there are more rows', () => {

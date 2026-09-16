@@ -49,6 +49,7 @@ export type WorkspaceSourceSelectionKind =
   | 'branch'
   | 'linear'
   | 'jira'
+  | 'beads'
 
 export type WorkspaceSourceSelection = {
   kind: WorkspaceSourceSelectionKind
@@ -198,19 +199,25 @@ export function buildWorkspaceSourceSelection(args: {
       ? 'linear'
       : provider === 'jira'
         ? 'jira'
-        : provider === 'gitlab'
-          ? linkedWorkItem.type === 'mr'
-            ? 'gitlab-mr'
-            : 'gitlab-issue'
-          : linkedWorkItem.type === 'pr'
-            ? 'github-pr'
-            : 'github-issue'
+        : provider === 'beads'
+          ? 'beads'
+          : provider === 'gitlab'
+            ? linkedWorkItem.type === 'mr'
+              ? 'gitlab-mr'
+              : 'gitlab-issue'
+            : linkedWorkItem.type === 'pr'
+              ? 'github-pr'
+              : 'github-issue'
+  const usesTitleOnlyLabel =
+    provider === 'linear' ||
+    provider === 'jira' ||
+    provider === 'beads' ||
+    linkedWorkItem.number === 0
   return {
     kind,
-    label:
-      provider === 'linear' || provider === 'jira' || linkedWorkItem.number === 0
-        ? linkedWorkItem.title
-        : `#${linkedWorkItem.number} ${linkedWorkItem.title}`,
+    label: usesTitleOnlyLabel
+      ? linkedWorkItem.title
+      : `#${linkedWorkItem.number} ${linkedWorkItem.title}`,
     url: linkedWorkItem.url
   }
 }
@@ -222,5 +229,7 @@ export function shouldPreserveWorkspaceSourceOnRepoChange(
     return false
   }
   const provider = getWorkspaceSourceProvider(item)
+  // Why: a bead id is meaningless outside the repo whose .beads directory holds it,
+  // so beads (like github/gitlab) falls through to the default false.
   return provider === 'linear' || provider === 'jira'
 }

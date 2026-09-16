@@ -1,7 +1,9 @@
-import { useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { AlertCircle, Loader2 } from 'lucide-react'
+import type { BeadsIssue } from '../../../../../shared/beads/beads-issue-types'
 import type { Repo } from '../../../../../shared/repo-types'
 import type { BeadsRepoRef } from '@/runtime/runtime-beads-client'
+import { useAppStore } from '@/store'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -11,6 +13,11 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { translate } from '@/i18n/i18n'
+import {
+  buildBeadsLinkedItem,
+  buildBeadsTaskSourceContext,
+  buildBeadsWorkspaceSeed
+} from './beads-start-worktree'
 import { BeadsDetailPane } from './BeadsDetailPane'
 import { BeadsFiltersBar } from './BeadsFiltersBar'
 import { BeadsListPane } from './BeadsListPane'
@@ -56,6 +63,22 @@ function BeadsRepoView({ repo, onHide }: { repo: Repo; onHide: () => void }): Re
   )
   const page = useBeadsPageState(repoRef)
   const detailRef = useRef<HTMLElement | null>(null)
+  const openModal = useAppStore((state) => state.openModal)
+  // Why: bypasses the TaskPage composer-actions model, which never reaches this
+  // component (Content.tsx passes only repos/primaryRepoId/onHide) — call the pure
+  // builders directly and open the composer the same way sidebar linked-item flows do.
+  const handleStartWorktree = useCallback(
+    (issue: Pick<BeadsIssue, 'id' | 'title'>): void => {
+      openModal('new-workspace-composer', {
+        linkedWorkItem: buildBeadsLinkedItem(issue, repoRef.id),
+        taskSourceContext: buildBeadsTaskSourceContext(repoRef),
+        prefilledName: buildBeadsWorkspaceSeed(issue),
+        initialRepoId: repoRef.id,
+        telemetrySource: 'sidebar'
+      })
+    },
+    [openModal, repoRef]
+  )
   if (!page.ready) {
     return (
       <BeadsSetupCard
@@ -126,6 +149,7 @@ function BeadsRepoView({ repo, onHide }: { repo: Repo; onHide: () => void }): Re
           detailRef.current?.focus()
         }}
         onLoadMore={page.loadMore}
+        onStartWorktree={handleStartWorktree}
       />
     )
   return (
@@ -160,6 +184,7 @@ function BeadsRepoView({ repo, onHide }: { repo: Repo; onHide: () => void }): Re
               issueId={page.openIssueId}
               schema={page.schema}
               onOpenIssue={page.openIssue}
+              onStartWorktree={handleStartWorktree}
             />
           ) : null
         }

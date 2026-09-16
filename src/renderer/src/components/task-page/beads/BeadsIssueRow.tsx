@@ -1,7 +1,7 @@
 import React from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, GitBranchPlus } from 'lucide-react'
 import { beadsStatusCategory } from '../../../../../shared/beads/beads-schema'
-import type { BeadsSchema } from '../../../../../shared/beads/beads-issue-types'
+import type { BeadsIssue, BeadsSchema } from '../../../../../shared/beads/beads-issue-types'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
 import { beadsStatusIcon, beadsStatusToneClass } from './beads-status-visuals'
@@ -23,6 +23,7 @@ type BeadsIssueRowProps = {
   current: boolean
   onSelect: (key: string) => void
   onToggle: (key: string, expand: boolean) => void
+  onStartWorktree: (issue: Pick<BeadsIssue, 'id' | 'title'>) => void
 }
 
 export function BeadsIssueRow({
@@ -32,7 +33,8 @@ export function BeadsIssueRow({
   mode,
   current,
   onSelect,
-  onToggle
+  onToggle,
+  onStartWorktree
 }: BeadsIssueRowProps): React.JSX.Element {
   const id = row.kind === 'issue' ? row.issue.id : row.parentId
   const title = row.kind === 'issue' ? row.issue.title : (row.parent?.title ?? id)
@@ -112,6 +114,27 @@ export function BeadsIssueRow({
       ) : null}
       {row.kind === 'issue' ? (
         <span className="shrink-0 text-[12px] text-muted-foreground">{`P${row.issue.priority}`}</span>
+      ) : null}
+      {row.kind === 'issue' ? (
+        <button
+          type="button"
+          // Why: same precedent as the expand chevron above — this row is a
+          // `role="option"` whose children are presentational to assistive tech.
+          aria-hidden
+          tabIndex={-1}
+          title={translate(
+            'auto.components.task-page.beads.startWorktreeRow',
+            'Start worktree from {{id}}',
+            { id }
+          )}
+          onClick={(event) => {
+            event.stopPropagation()
+            onStartWorktree(row.issue)
+          }}
+          className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-foreground"
+        >
+          <GitBranchPlus className="size-3.5" />
+        </button>
       ) : null}
     </div>
   )

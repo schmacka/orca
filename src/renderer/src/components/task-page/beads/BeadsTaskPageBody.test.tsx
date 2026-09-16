@@ -12,7 +12,8 @@ const mocks = vi.hoisted(() => ({
   pollBeadsChangeToken: vi.fn(),
   loadBeadsList: vi.fn(),
   loadBeadsDetails: vi.fn(),
-  installPoller: vi.fn(() => () => {})
+  installPoller: vi.fn(() => () => {}),
+  openModal: vi.fn()
 }))
 
 // getState is part of the surface: refresh() re-reads the token through it after
@@ -118,7 +119,8 @@ function installState(
     loadBeadsSchema: mocks.loadBeadsSchema,
     pollBeadsChangeToken: mocks.pollBeadsChangeToken,
     loadBeadsList: mocks.loadBeadsList,
-    loadBeadsDetails: mocks.loadBeadsDetails
+    loadBeadsDetails: mocks.loadBeadsDetails,
+    openModal: mocks.openModal
   }
 }
 
@@ -367,5 +369,34 @@ describe('BeadsTaskPageBody', () => {
     expect(mocks.loadBeadsList).not.toHaveBeenCalledWith(REPO_REF, expect.anything(), {
       force: true
     })
+  })
+
+  it('opens the composer pre-filled with the selected bead', () => {
+    const readyKey = JSON.stringify({ view: 'ready', filter: {}, limit: 200 })
+    const PAGE = {
+      data: { issues: [issue('e1')], hasMore: false },
+      error: null,
+      loading: false,
+      token: 'h1'
+    }
+    installState({ data: READY, error: null, loading: false, token: null }, { [readyKey]: PAGE })
+    // Loaded synchronously so the detail pane's header (not the aria-hidden row
+    // button) renders on the first paint after selecting the row below.
+    repoState.details.e1 = {
+      data: { issue: issue('e1'), dependencies: [], dependents: [], comments: [] },
+      error: null,
+      loading: false,
+      token: 'h1'
+    }
+    renderBody()
+    fireEvent.click(screen.getByText('Title e1'))
+    fireEvent.click(screen.getByRole('button', { name: 'Start worktree' }))
+    expect(mocks.openModal).toHaveBeenCalledWith(
+      'new-workspace-composer',
+      expect.objectContaining({
+        linkedWorkItem: expect.objectContaining({ provider: 'beads', beadsIdentifier: 'e1' }),
+        prefilledName: expect.stringContaining('e1')
+      })
+    )
   })
 })

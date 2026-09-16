@@ -1,8 +1,9 @@
 import React from 'react'
-import { ChevronDown, Copy } from 'lucide-react'
+import { ChevronDown, Copy, GitBranchPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { beadsStatusCategory } from '../../../../../shared/beads/beads-schema'
 import type {
+  BeadsIssue,
   BeadsIssueDetails,
   BeadsIssueRelation,
   BeadsSchema
@@ -20,6 +21,7 @@ type SectionsProps = {
   details: BeadsIssueDetails
   schema: BeadsSchema
   onOpenIssue: (id: string) => void
+  onStartWorktree: (issue: Pick<BeadsIssue, 'id' | 'title'>) => void
 }
 
 function RelationRow({
@@ -125,7 +127,8 @@ function TextSection(props: {
 export function BeadsDetailSections({
   details,
   schema,
-  onOpenIssue
+  onOpenIssue,
+  onStartWorktree
 }: SectionsProps): React.JSX.Element {
   const { issue } = details
   const groups = groupBeadsRelations(details, schema)
@@ -170,6 +173,15 @@ export function BeadsDetailSections({
               {label}
             </Badge>
           ))}
+          <Button
+            variant="outline"
+            size="xs"
+            className="ml-auto"
+            onClick={() => onStartWorktree(issue)}
+          >
+            <GitBranchPlus aria-hidden className="size-3.5" />
+            {translate('auto.components.task-page.beads.startWorktree', 'Start worktree')}
+          </Button>
         </div>
         <h2 className="text-[14px] font-medium text-foreground">{issue.title}</h2>
       </header>

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Loader2 } from 'lucide-react'
-import type { BeadsSchema } from '../../../../../shared/beads/beads-issue-types'
+import type { BeadsIssue, BeadsSchema } from '../../../../../shared/beads/beads-issue-types'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import { isEditableTarget } from '@/lib/editable-target'
@@ -23,6 +23,7 @@ type BeadsListPaneProps = {
   onToggleKey: (key: string, expand: boolean) => void
   onOpenKey: (key: string) => void
   onLoadMore: () => void
+  onStartWorktree: (issue: Pick<BeadsIssue, 'id' | 'title'>) => void
 }
 
 export function BeadsListPane(props: BeadsListPaneProps): React.JSX.Element {
@@ -102,6 +103,7 @@ export function BeadsListPane(props: BeadsListPaneProps): React.JSX.Element {
                   current={row.key === currentKey}
                   onSelect={onSelectKey}
                   onToggle={onToggleKey}
+                  onStartWorktree={props.onStartWorktree}
                 />
               </div>
             )

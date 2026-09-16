@@ -121,6 +121,7 @@ describe('BeadsDetailPane', () => {
         issueId="cwf.3"
         schema={FALLBACK_BEADS_SCHEMA}
         onOpenIssue={vi.fn()}
+        onStartWorktree={vi.fn()}
       />
     )
     expect(mocks.loadBeadsDetails).toHaveBeenCalledWith(REPO, 'cwf.3')
@@ -135,6 +136,7 @@ describe('BeadsDetailPane', () => {
         issueId="cwf.3"
         schema={FALLBACK_BEADS_SCHEMA}
         onOpenIssue={vi.fn()}
+        onStartWorktree={vi.fn()}
       />
     )
     expect(mocks.loadBeadsDetails).not.toHaveBeenCalled()
@@ -150,6 +152,7 @@ describe('BeadsDetailPane', () => {
         issueId="cwf.3"
         schema={FALLBACK_BEADS_SCHEMA}
         onOpenIssue={onOpenIssue}
+        onStartWorktree={vi.fn()}
       />
     )
     expect(screen.getByText('Run the playtest')).toBeInTheDocument()
@@ -162,6 +165,22 @@ describe('BeadsDetailPane', () => {
     expect(onOpenIssue).toHaveBeenCalledWith('cwf.1')
   })
 
+  it('starts a worktree for the open issue', () => {
+    installState({ data: DETAILS, error: null, loading: false, token: 'h1' })
+    const onStartWorktree = vi.fn()
+    render(
+      <BeadsDetailPane
+        repo={REPO}
+        issueId="cwf.3"
+        schema={FALLBACK_BEADS_SCHEMA}
+        onOpenIssue={vi.fn()}
+        onStartWorktree={onStartWorktree}
+      />
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Start worktree' }))
+    expect(onStartWorktree).toHaveBeenCalledWith(expect.objectContaining({ id: 'cwf.3' }))
+  })
+
   it('opens the related issue when a relation row (not the blocked callout) is clicked', () => {
     installState({ data: DETAILS, error: null, loading: false, token: 'h1' })
     const onOpenIssue = vi.fn()
@@ -171,6 +190,7 @@ describe('BeadsDetailPane', () => {
         issueId="cwf.3"
         schema={FALLBACK_BEADS_SCHEMA}
         onOpenIssue={onOpenIssue}
+        onStartWorktree={vi.fn()}
       />
     )
     fireEvent.click(screen.getByRole('button', { name: /x\.9/ }))
@@ -185,6 +205,7 @@ describe('BeadsDetailPane', () => {
         issueId="cwf.3"
         schema={FALLBACK_BEADS_SCHEMA}
         onOpenIssue={vi.fn()}
+        onStartWorktree={vi.fn()}
       />
     )
     expect(screen.getByText('No relations')).toBeInTheDocument()
@@ -199,6 +220,7 @@ describe('BeadsDetailPane', () => {
         issueId="cwf.3"
         schema={FALLBACK_BEADS_SCHEMA}
         onOpenIssue={vi.fn()}
+        onStartWorktree={vi.fn()}
       />
     )
     mocks.loadBeadsDetails.mockClear()
@@ -212,6 +234,7 @@ describe('BeadsDetailPane', () => {
         issueId="cwf.3"
         schema={FALLBACK_BEADS_SCHEMA}
         onOpenIssue={vi.fn()}
+        onStartWorktree={vi.fn()}
       />
     )
 
@@ -231,6 +254,7 @@ describe('BeadsDetailPane', () => {
         issueId="cwf.3"
         schema={FALLBACK_BEADS_SCHEMA}
         onOpenIssue={vi.fn()}
+        onStartWorktree={vi.fn()}
       />
     )
     expect(screen.getByText('Issue cwf.3 was not found.')).toBeInTheDocument()

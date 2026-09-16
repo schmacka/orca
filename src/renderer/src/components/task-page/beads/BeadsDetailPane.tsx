@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { AlertCircle, Loader2 } from 'lucide-react'
-import type { BeadsSchema } from '../../../../../shared/beads/beads-issue-types'
+import type { BeadsIssue, BeadsSchema } from '../../../../../shared/beads/beads-issue-types'
 import type { BeadsRepoRef } from '@/runtime/runtime-beads-client'
 import { useAppStore } from '@/store'
 // From beads-load-state, not beads.ts: beads.ts pulls in the runtime client.
@@ -12,13 +12,15 @@ type BeadsDetailPaneProps = {
   issueId: string
   schema: BeadsSchema
   onOpenIssue: (id: string) => void
+  onStartWorktree: (issue: Pick<BeadsIssue, 'id' | 'title'>) => void
 }
 
 export function BeadsDetailPane({
   repo,
   issueId,
   schema,
-  onOpenIssue
+  onOpenIssue,
+  onStartWorktree
 }: BeadsDetailPaneProps): React.JSX.Element {
   const entry = useAppStore((state) => selectBeadsRepoState(state, repo.id).details[issueId])
   const changeToken = useAppStore((state) => selectBeadsRepoState(state, repo.id).changeToken)
@@ -40,7 +42,12 @@ export function BeadsDetailPane({
   if (entry?.data) {
     return (
       <div className="scrollbar-sleek min-h-0 flex-1 overflow-y-auto">
-        <BeadsDetailSections details={entry.data} schema={schema} onOpenIssue={onOpenIssue} />
+        <BeadsDetailSections
+          details={entry.data}
+          schema={schema}
+          onOpenIssue={onOpenIssue}
+          onStartWorktree={onStartWorktree}
+        />
       </div>
     )
   }

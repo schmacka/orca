@@ -100,6 +100,17 @@ describe('workspace source policy', () => {
         url: 'https://gitlab.example.com/g/p/-/work_items/3'
       })
     ).toBe(false)
+    // Why: a bead id means nothing outside the repo whose .beads directory holds it.
+    expect(
+      shouldPreserveWorkspaceSourceOnRepoChange({
+        provider: 'beads',
+        type: 'issue',
+        number: 0,
+        title: 'cwf.3 Run the playtest',
+        url: 'bd://cwf.3',
+        beadsIdentifier: 'cwf.3'
+      })
+    ).toBe(false)
     // Why: a null source (branch-only) has nothing to preserve; callers guard on this.
     expect(shouldPreserveWorkspaceSourceOnRepoChange(null)).toBe(false)
   })
@@ -122,5 +133,19 @@ describe('workspace source policy', () => {
     expect(
       shouldApplyWorkspaceSourceAutoName({ currentName: 'my workspace', lastAutoName: 'old' })
     ).toBe(false)
+    // Why: a beads item always carries number: 0, but the kind must be explicit —
+    // this is the exact selection the chip icon in the new-workspace field switches on.
+    expect(
+      buildWorkspaceSourceSelection({
+        linkedWorkItem: {
+          provider: 'beads',
+          type: 'issue',
+          number: 0,
+          title: 'cwf.3 Run the playtest',
+          url: 'bd://cwf.3',
+          beadsIdentifier: 'cwf.3'
+        }
+      })
+    ).toMatchObject({ kind: 'beads', label: 'cwf.3 Run the playtest' })
   })
 })
