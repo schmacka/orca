@@ -3807,6 +3807,7 @@ type BeadsPageState = {
   pollError: BeadsFailure | null
   indexTruncated: boolean
   listLoading: boolean
+  listLoaded: boolean
   hasMore: boolean
   currentKey: string | null
   openIssueId: string | null
@@ -4133,6 +4134,8 @@ export type BeadsPageState = {
   labelOptions: string[]
   epicOptions: { id: string; title: string }[]
   listError: BeadsFailure | null
+  pollError: BeadsFailure | null
+  indexTruncated: boolean
   listLoading: boolean
   listLoaded: boolean
   hasMore: boolean
