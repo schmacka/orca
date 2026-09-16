@@ -8495,7 +8495,8 @@
           "integrationsHint": "Credentials for all providers also live under",
           "integrationsLink": "Integrations",
           "skillHint": ". After Linear is connected, usage examples stay under Settings → Linear.",
-          "incompleteBannerBodyWithLinear": "Hide providers you do not use, or expand a card and finish its steps. For Linear: API access, the agent skill, and Show in Tasks."
+          "incompleteBannerBodyWithLinear": "Hide providers you do not use, or expand a card and finish its steps. For Linear: API access, the agent skill, and Show in Tasks.",
+          "beadsDescription": "Local issues tracked with bd in each repository."
         },
         "TerminalAppearanceSection": {
           "a14a427ae4": "Thickness of the pane divider line.",
@@ -11867,6 +11868,10 @@
           "targetDescription": "Higher values increase contrast where possible. Background colors stay unchanged.",
           "subtle": "Subtle",
           "strong": "Strong"
+        },
+        "TaskSourceSimpleSetup": {
+          "beadsInstallTitle": "Install bd 1.2.0 or newer",
+          "beadsInstallDescription": "Each repository needs bd initialized (bd init). The Beads tab checks this per repository."
         }
       },
       "right": {
@@ -16941,6 +16946,11 @@
         "3d8e5f1b9c": "Share skills behind an unlisted link and install them on any machine you use.",
         "7e1a9c4d2f": "Signing in…",
         "c5b3e8a17d": "Sign in to Orca"
+      },
+      "task-page": {
+        "beads": {
+          "providerLabel": "Beads"
+        }
       }
     },
     "i18n": {
