@@ -16992,7 +16992,23 @@
           "sectionNotes": "Notes",
           "noDescription": "No description",
           "commentsHeading": "Comments ({{count}})",
-          "noComments": "No comments"
+          "noComments": "No comments",
+          "setupHide": "Hide Beads",
+          "setupRecheck": "Re-check",
+          "setupMissingTitle": "Install bd",
+          "setupMissingText": "bd was not found on the host that runs {{repo}}.",
+          "setupOpenGuide": "Open install guide",
+          "setupOutdatedTitle": "Upgrade bd",
+          "setupOutdatedText": "Found bd {{version}}; Orca needs bd 1.2.0 or newer.",
+          "setupInitTitle": "Initialize beads",
+          "setupInitText": "Run bd init in {{repo}}, then re-check.",
+          "setupCopied": "Copied bd init",
+          "setupCopyInit": "Copy bd init",
+          "setupOfflineTitle": "The host is offline",
+          "setupErrorTitle": "Beads could not be read",
+          "setupRetry": "Retry",
+          "resizeList": "Resize issue list",
+          "selectIssue": "Select an issue to see its details"
         }
       }
     },
