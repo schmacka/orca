@@ -140,6 +140,21 @@ describe('autoClaimBeadsWorktree', () => {
     expect(claimBeadsIssue).not.toHaveBeenCalled()
   })
 
+  it('warns to the console (no toast) and does not claim when the repo row is gone', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    store.repos = []
+
+    await autoClaimBeadsWorktree(worktree())
+
+    expect(claimBeadsIssue).not.toHaveBeenCalled()
+    expect(toast.warning).not.toHaveBeenCalled()
+    expect(warnSpy).toHaveBeenCalledWith(
+      'beads auto-claim: repo not found, skipping claim',
+      expect.objectContaining({ beadsId: 'cwf.3', repoId: 'repo-1' })
+    )
+    warnSpy.mockRestore()
+  })
+
   it('warns and resolves without throwing when the claim rejects', async () => {
     claimBeadsIssue.mockRejectedValueOnce(new Error('bd busy'))
 

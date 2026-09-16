@@ -22,6 +22,13 @@ export async function autoClaimBeadsWorktree(worktree: BeadsAutoClaimWorktree): 
   // was created, so the request's repo shape can no longer be trusted here.
   const repo = state.repos.find((candidate) => candidate.id === worktree.repoId)
   if (!repo) {
+    // Why: reachable — a repo/project removal can race this in-flight create
+    // (removeProject filters state.repos synchronously, unaware of it), so this
+    // is a real skip, not dead code; no toast, just a diagnosable trace.
+    console.warn('beads auto-claim: repo not found, skipping claim', {
+      beadsId: linkedWorkItem.beadsIdentifier,
+      repoId: worktree.repoId
+    })
     return
   }
   const repoRef: BeadsRepoRef = {
