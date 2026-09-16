@@ -103,7 +103,7 @@ export function BeadsSplitLayout({
         </section>
       ) : (
         <Sheet open={detail !== null} onOpenChange={(open) => !open && onCloseDetail()}>
-          <SheetContent side="right" className="w-full p-0 sm:max-w-[640px]">
+          <SheetContent side="right" className="w-full sm:max-w-[640px]">
             {/* Radix requires a title; VisuallyHidden.Root is how the rest of the app hides it. */}
             <VisuallyHidden.Root asChild>
               <SheetTitle>{detailTitle}</SheetTitle>
