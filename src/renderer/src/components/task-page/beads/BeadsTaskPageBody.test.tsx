@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import '@testing-library/jest-dom/vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { Repo } from '../../../../../shared/repo-types'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
@@ -15,8 +15,13 @@ const mocks = vi.hoisted(() => ({
   installPoller: vi.fn(() => () => {})
 }))
 
+// getState is part of the surface: refresh() re-reads the token through it after
+// polling. A bare function mock makes any refresh test throw instead of fail.
 vi.mock('@/store', () => ({
-  useAppStore: (selector: (state: Record<string, unknown>) => unknown) => selector(mocks.state)
+  useAppStore: Object.assign(
+    (selector: (state: Record<string, unknown>) => unknown) => selector(mocks.state),
+    { getState: () => mocks.state }
+  )
 }))
 vi.mock('@/lib/window-visibility-timeout-poller', () => ({
   installWindowVisibilityTimeoutPoller: mocks.installPoller
@@ -83,22 +88,32 @@ function issue(id: string, parent?: string) {
   }
 }
 
+// Typed (not `unknown`, like `mocks.state`) so a test can move `changeToken` directly —
+// `refresh()` re-reads it through `useAppStore.getState()` after polling.
+let repoState: {
+  status: unknown
+  schema: { data: null; error: null; loading: false; token: null }
+  changeToken: string | null
+  pollError: unknown
+  lists: Record<string, unknown>
+  details: Record<string, unknown>
+}
+
 function installState(
   status: unknown,
   lists: Record<string, unknown> = {},
   changeToken: string | null = 'h1'
 ) {
+  repoState = {
+    status,
+    schema: { data: null, error: null, loading: false, token: null },
+    changeToken,
+    pollError: null,
+    lists,
+    details: {}
+  }
   mocks.state = {
-    beadsRepos: {
-      r1: {
-        status,
-        schema: { data: null, error: null, loading: false, token: null },
-        changeToken,
-        pollError: null,
-        lists,
-        details: {}
-      }
-    },
+    beadsRepos: { r1: repoState },
     loadBeadsStatus: mocks.loadBeadsStatus,
     loadBeadsSchema: mocks.loadBeadsSchema,
     pollBeadsChangeToken: mocks.pollBeadsChangeToken,
@@ -210,5 +225,38 @@ describe('BeadsTaskPageBody', () => {
     installState({ data: READY, error: null, loading: false, token: null })
     renderBody([REPO, { ...REPO, id: 'r2', displayName: 'other' }])
     expect(screen.getByRole('combobox')).toBeInTheDocument()
+  })
+
+  it('forces both list reloads when the poll leaves the token unchanged', async () => {
+    installState({ data: READY, error: null, loading: false, token: null })
+    renderBody()
+    mocks.loadBeadsList.mockClear()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+
+    await waitFor(() => expect(mocks.pollBeadsChangeToken).toHaveBeenCalledWith(REPO_REF))
+    await waitFor(() =>
+      expect(mocks.loadBeadsList).toHaveBeenCalledWith(REPO_REF, BEADS_TREE_INDEX_REQUEST, {
+        force: true
+      })
+    )
+  })
+
+  it('leaves the reload to the effects when the poll moved the token', async () => {
+    installState({ data: READY, error: null, loading: false, token: null })
+    // The poll finding new data is exactly when forcing would duplicate the work the
+    // [changeToken] effects are about to do.
+    mocks.pollBeadsChangeToken.mockImplementation(async () => {
+      repoState.changeToken = 'h2'
+    })
+    renderBody()
+    mocks.loadBeadsList.mockClear()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+
+    await waitFor(() => expect(mocks.pollBeadsChangeToken).toHaveBeenCalledWith(REPO_REF))
+    expect(mocks.loadBeadsList).not.toHaveBeenCalledWith(REPO_REF, expect.anything(), {
+      force: true
+    })
   })
 })
