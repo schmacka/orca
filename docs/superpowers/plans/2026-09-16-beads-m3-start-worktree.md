@@ -100,7 +100,7 @@ src/renderer/src/lib/worktree-creation-flow-execute.ts                          
 src/renderer/src/components/sidebar/beads-worktree-disposition.ts                    decision + actions (Task 9)
 src/renderer/src/components/sidebar/use-beads-disposition.ts,
   BeadsWorktreeDisposition.tsx                                                       hook + UI (Task 10)
-src/renderer/src/components/sidebar/DeleteWorktreeDialog.tsx, delete-worktree-flow.ts wiring (Task 11)
+src/renderer/src/components/sidebar/DeleteWorktreeDialog.tsx wiring (Task 11)
 tests/e2e/beads-start-worktree.spec.ts                                               e2e (Task 12)
 ```
 
@@ -657,10 +657,10 @@ git commit -m "feat(beads): offer close, unclaim or leave when removing a worktr
 ### Task 11: Wire the disposition into the removal paths
 
 **Files:**
-- Modify: `src/renderer/src/components/sidebar/DeleteWorktreeDialog.tsx`, `delete-worktree-flow.ts`
+- Modify: `src/renderer/src/components/sidebar/DeleteWorktreeDialog.tsx` (all three call sites live here)
 - Test: extend the delete-flow tests
 
-**The three paths in scope** (ruling 4): the normal dialog delete, `runDialogForceDelete` (`delete-worktree-flow.ts:275`), and `runLineageDeleteAll` (:317). Each ends in a `.then(deletedTargets)` — run the disposition from each, **only for targets actually deleted**.
+**The three paths in scope** (ruling 4): the normal dialog delete, `runDialogForceDelete` (called at `DeleteWorktreeDialog.tsx:275`, defined in `delete-worktree-dialog-force-delete.ts:20`), and `runLineageDeleteAll` (called at `DeleteWorktreeDialog.tsx:317`, defined in `delete-worktree-lineage-delete-all.ts:11`). All three CALL SITES are in the dialog; `delete-worktree-flow.ts` is only 200 lines and contains none of them. Each ends in a `.then(deletedTargets)` — run the disposition from each, **only for targets actually deleted**.
 
 **Skip-confirm must not skip an open bead.** `skipDeleteWorktreeConfirm` (:107-111) calls `runWorktreeDeleteWithToast` with no dialog at all. An open bead forces the dialog anyway, exactly as `hasLineageChildren` (:108) already does. Without this the setting silently disables the whole feature.
 
