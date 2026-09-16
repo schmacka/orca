@@ -2,7 +2,8 @@ import type { StateCreator } from 'zustand'
 import type {
   BeadsFailure,
   BeadsIssuePage,
-  BeadsListRequest
+  BeadsListRequest,
+  BeadsResult
 } from '../../../../shared/beads/beads-contract'
 import type {
   BeadsIssueDetails,
@@ -42,6 +43,13 @@ export type BeadsSlice = {
     options?: BeadsLoadOptions
   ) => Promise<void>
   loadBeadsDetails: (repo: BeadsRepoRef, id: string, options?: BeadsLoadOptions) => Promise<void>
+  claimBeadsIssue: (repo: BeadsRepoRef, id: string) => Promise<BeadsResult<BeadsIssueDetails>>
+  closeBeadsIssue: (
+    repo: BeadsRepoRef,
+    id: string,
+    reason: string
+  ) => Promise<BeadsResult<BeadsIssueDetails>>
+  unclaimBeadsIssue: (repo: BeadsRepoRef, id: string) => Promise<BeadsResult<BeadsIssueDetails>>
 }
 
 type BeadsStateCreator = StateCreator<AppState, [], [], BeadsSlice>

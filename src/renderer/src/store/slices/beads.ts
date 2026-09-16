@@ -1,11 +1,14 @@
 import type { BeadsListRequest } from '../../../../shared/beads/beads-contract'
 import type { StateCreator } from 'zustand'
 import {
+  beadsClaimIssue,
+  beadsCloseIssue,
   beadsGetChangeToken,
   beadsGetIssueDetails,
   beadsGetSchema,
   beadsGetStatus,
   beadsListIssues,
+  beadsUpdateIssue,
   type BeadsRepoRef
 } from '@/runtime/runtime-beads-client'
 import type { AppState } from '../types'
@@ -164,6 +167,40 @@ export const createBeadsSlice: StateCreator<AppState, [], [], BeadsSlice> = (set
         )
       }))
     )
+  },
+
+  claimBeadsIssue: async (repo, id) => {
+    const actor = get().settings?.beadsActor ?? null
+    const result = await beadsClaimIssue(get().settings, repo, id, actor)
+    if (result.ok) {
+      await get().pollBeadsChangeToken(repo)
+    }
+    return result
+  },
+
+  closeBeadsIssue: async (repo, id, reason) => {
+    const actor = get().settings?.beadsActor ?? null
+    const result = await beadsCloseIssue(get().settings, repo, id, reason, actor)
+    if (result.ok) {
+      await get().pollBeadsChangeToken(repo)
+    }
+    return result
+  },
+
+  unclaimBeadsIssue: async (repo, id) => {
+    const actor = get().settings?.beadsActor ?? null
+    // Why: --claim sets both status and assignee, so unclaiming must reset both.
+    const result = await beadsUpdateIssue(
+      get().settings,
+      repo,
+      id,
+      { assignee: '', status: 'open' },
+      actor
+    )
+    if (result.ok) {
+      await get().pollBeadsChangeToken(repo)
+    }
+    return result
   }
 })
 

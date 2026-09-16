@@ -21,10 +21,14 @@ vi.mock('./runtime-rpc-client', () => ({
 
 import { RuntimeRpcCallError } from './runtime-rpc-client'
 
+import type { BeadsIssueDetails } from '../../../shared/beads/beads-issue-types'
 import {
+  beadsClaimIssue,
+  beadsCloseIssue,
   beadsGetIssueDetails,
   beadsGetStatus,
   beadsListIssues,
+  beadsUpdateIssue,
   getBeadsRuntimeTarget,
   type BeadsRepoRef
 } from './runtime-beads-client'
@@ -56,7 +60,34 @@ const beadsApi = {
   getSchema: vi.fn(),
   getChangeToken: vi.fn(),
   listIssues: vi.fn(),
-  getIssueDetails: vi.fn()
+  getIssueDetails: vi.fn(),
+  claimIssue: vi.fn(),
+  closeIssue: vi.fn(),
+  updateIssue: vi.fn()
+}
+
+// Why: annotate, don't infer — a bare object literal here would widen `status` and
+// `issueType` to `string`, which `pnpm tc` rejects (config/tsconfig.tc.web.json
+// type-checks tests too).
+const DETAILS: BeadsIssueDetails = {
+  issue: {
+    id: 'p-1',
+    title: 'Fix the thing',
+    status: 'in_progress',
+    priority: 1,
+    issueType: 'task',
+    labels: [],
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z',
+    dependencyCount: 0,
+    dependentCount: 0,
+    commentCount: 0,
+    blockedBy: [],
+    dependencyEdges: []
+  },
+  dependencies: [],
+  dependents: [],
+  comments: []
 }
 
 beforeEach(() => {
@@ -125,6 +156,83 @@ describe('beads runtime client', () => {
       ok: false,
       error: { kind: 'host-offline' }
     })
+  })
+
+  it('claims an issue over IPC for local repos', async () => {
+    beadsApi.claimIssue.mockResolvedValue({ ok: true, value: DETAILS })
+    await expect(beadsClaimIssue(null, LOCAL_REPO, 'p-1', 'sebastian')).resolves.toEqual({
+      ok: true,
+      value: DETAILS
+    })
+    expect(beadsApi.claimIssue).toHaveBeenCalledWith({
+      repoPath: '/work/app',
+      repoId: 'r1',
+      id: 'p-1',
+      actor: 'sebastian'
+    })
+    expect(mocks.callRuntimeRpc).not.toHaveBeenCalled()
+  })
+
+  it('claims an issue over RPC for runtime-owned repos', async () => {
+    mocks.callRuntimeRpc.mockResolvedValue({ ok: true, value: DETAILS })
+    await beadsClaimIssue(null, RUNTIME_REPO, 'p-1', 'sebastian')
+    expect(mocks.callRuntimeRpc).toHaveBeenCalledWith(
+      { kind: 'environment', environmentId: 'env-1' },
+      'beads.claimIssue',
+      { repo: 'r2', id: 'p-1', actor: 'sebastian' },
+      { timeoutMs: 45_000 }
+    )
+  })
+
+  it('closes an issue with a reason and actor', async () => {
+    beadsApi.closeIssue.mockResolvedValue({ ok: true, value: DETAILS })
+    await expect(beadsCloseIssue(null, LOCAL_REPO, 'p-1', 'done', 'sebastian')).resolves.toEqual({
+      ok: true,
+      value: DETAILS
+    })
+    expect(beadsApi.closeIssue).toHaveBeenCalledWith({
+      repoPath: '/work/app',
+      repoId: 'r1',
+      id: 'p-1',
+      reason: 'done',
+      actor: 'sebastian'
+    })
+  })
+
+  it('closes an issue over RPC for runtime-owned repos', async () => {
+    mocks.callRuntimeRpc.mockResolvedValue({ ok: true, value: DETAILS })
+    await beadsCloseIssue(null, RUNTIME_REPO, 'p-1', 'done', 'sebastian')
+    expect(mocks.callRuntimeRpc).toHaveBeenCalledWith(
+      { kind: 'environment', environmentId: 'env-1' },
+      'beads.closeIssue',
+      { repo: 'r2', id: 'p-1', reason: 'done', actor: 'sebastian' },
+      { timeoutMs: 45_000 }
+    )
+  })
+
+  it('updates an issue with a patch and actor', async () => {
+    beadsApi.updateIssue.mockResolvedValue({ ok: true, value: DETAILS })
+    await expect(
+      beadsUpdateIssue(null, LOCAL_REPO, 'p-1', { assignee: '', status: 'open' }, 'sebastian')
+    ).resolves.toEqual({ ok: true, value: DETAILS })
+    expect(beadsApi.updateIssue).toHaveBeenCalledWith({
+      repoPath: '/work/app',
+      repoId: 'r1',
+      id: 'p-1',
+      patch: { assignee: '', status: 'open' },
+      actor: 'sebastian'
+    })
+  })
+
+  it('updates an issue over RPC for runtime-owned repos', async () => {
+    mocks.callRuntimeRpc.mockResolvedValue({ ok: true, value: DETAILS })
+    await beadsUpdateIssue(null, RUNTIME_REPO, 'p-1', { assignee: '', status: 'open' }, 'sebastian')
+    expect(mocks.callRuntimeRpc).toHaveBeenCalledWith(
+      { kind: 'environment', environmentId: 'env-1' },
+      'beads.updateIssue',
+      { repo: 'r2', id: 'p-1', patch: { assignee: '', status: 'open' }, actor: 'sebastian' },
+      { timeoutMs: 45_000 }
+    )
   })
 
   it('reports a refused RPC as failed, not as an offline host', async () => {

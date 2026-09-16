@@ -1,5 +1,6 @@
 import type {
   BeadsIssuePage,
+  BeadsIssuePatch,
   BeadsListRequest,
   BeadsRepoArgs,
   BeadsResult
@@ -146,5 +147,40 @@ export function beadsGetIssueDetails(
 ): Promise<BeadsResult<BeadsIssueDetails>> {
   return callBeads(settings, repo, 'getIssueDetails', { id }, (args) =>
     window.api.beads.getIssueDetails({ ...args, id })
+  )
+}
+
+export function beadsClaimIssue(
+  settings: BeadsRuntimeSettings,
+  repo: BeadsRepoRef,
+  id: string,
+  actor: string | null
+): Promise<BeadsResult<BeadsIssueDetails>> {
+  return callBeads(settings, repo, 'claimIssue', { id, actor }, (args) =>
+    window.api.beads.claimIssue({ ...args, id, actor })
+  )
+}
+
+export function beadsCloseIssue(
+  settings: BeadsRuntimeSettings,
+  repo: BeadsRepoRef,
+  id: string,
+  reason: string,
+  actor: string | null
+): Promise<BeadsResult<BeadsIssueDetails>> {
+  return callBeads(settings, repo, 'closeIssue', { id, reason, actor }, (args) =>
+    window.api.beads.closeIssue({ ...args, id, reason, actor })
+  )
+}
+
+export function beadsUpdateIssue(
+  settings: BeadsRuntimeSettings,
+  repo: BeadsRepoRef,
+  id: string,
+  patch: BeadsIssuePatch,
+  actor: string | null
+): Promise<BeadsResult<BeadsIssueDetails>> {
+  return callBeads(settings, repo, 'updateIssue', { id, patch, actor }, (args) =>
+    window.api.beads.updateIssue({ ...args, id, patch, actor })
   )
 }
