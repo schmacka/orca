@@ -1,6 +1,8 @@
 import type { BeadsIssue } from '../../../../../shared/beads/beads-issue-types'
-import { getRepoExecutionHostId } from '../../../../../shared/execution-host'
-import type { TaskSourceContext } from '../../../../../shared/task-source-context'
+import {
+  buildTaskSourceContextFromRepo,
+  type TaskSourceContext
+} from '../../../../../shared/task-source-context'
 import type { WorkspaceLinkedItem } from '../../../../../shared/worktree/types'
 import {
   getLinkedWorkItemSuggestedName,
@@ -37,15 +39,15 @@ export function buildBeadsWorkspaceSeed(issue: Pick<BeadsIssue, 'id' | 'title'>)
   )
 }
 
-// Why: modeled on getTaskPageRepoSourceContext, but beads repos carry no project-catalog
-// or host-setup entry, so projectId/hostId fall straight back to the repo itself.
-export function buildBeadsTaskSourceContext(repo: BeadsRepoRef): TaskSourceContext {
-  return {
-    kind: 'task-source',
+// Why: modeled on getTaskPageRepoSourceContext, but BeadsRepoRef carries none of the
+// upstream/gitRemoteIdentity fields a project-catalog lookup needs, so projectId just
+// falls back to repo.id. Routes through the shared builder (not a hand-rolled literal)
+// so every field normalizes the same way, `null` defaults included.
+export function buildBeadsTaskSourceContext(repo: BeadsRepoRef): TaskSourceContext | null {
+  return buildTaskSourceContextFromRepo({
     provider: 'beads',
     projectId: repo.id,
-    hostId: getRepoExecutionHostId(repo),
-    repoId: repo.id,
+    repo,
     providerIdentity: { provider: 'beads' }
-  }
+  })
 }

@@ -111,6 +111,18 @@ describe('workspace source policy', () => {
         beadsIdentifier: 'cwf.3'
       })
     ).toBe(false)
+    // Why: TaskPage seeds can omit provider (see the inferred-Jira/GitLab cases above).
+    // A provider-less bead has number: 0 and a non-github URL — exactly what the
+    // fallback inference otherwise claims for Linear — so this must not flip to true.
+    expect(
+      shouldPreserveWorkspaceSourceOnRepoChange({
+        type: 'issue',
+        number: 0,
+        title: 'Inferred bead',
+        url: 'bd://cwf.3',
+        beadsIdentifier: 'cwf.3'
+      })
+    ).toBe(false)
     // Why: a null source (branch-only) has nothing to preserve; callers guard on this.
     expect(shouldPreserveWorkspaceSourceOnRepoChange(null)).toBe(false)
   })

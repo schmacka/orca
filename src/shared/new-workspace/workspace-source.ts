@@ -83,6 +83,11 @@ export function getWorkspaceSourceProvider(item: WorkspaceSourceItemLike): Works
   if (item.provider) {
     return item.provider
   }
+  // Why: must run before the number===0/non-github fallback below, which would
+  // otherwise claim every provider-less bead item (number: 0, a bd:// url) for Linear.
+  if (item.beadsIdentifier) {
+    return 'beads'
+  }
   if (item.linearIdentifier) {
     return 'linear'
   }
@@ -208,16 +213,12 @@ export function buildWorkspaceSourceSelection(args: {
             : linkedWorkItem.type === 'pr'
               ? 'github-pr'
               : 'github-issue'
-  const usesTitleOnlyLabel =
-    provider === 'linear' ||
-    provider === 'jira' ||
-    provider === 'beads' ||
-    linkedWorkItem.number === 0
   return {
     kind,
-    label: usesTitleOnlyLabel
-      ? linkedWorkItem.title
-      : `#${linkedWorkItem.number} ${linkedWorkItem.title}`,
+    label:
+      provider === 'linear' || provider === 'jira' || linkedWorkItem.number === 0
+        ? linkedWorkItem.title
+        : `#${linkedWorkItem.number} ${linkedWorkItem.title}`,
     url: linkedWorkItem.url
   }
 }

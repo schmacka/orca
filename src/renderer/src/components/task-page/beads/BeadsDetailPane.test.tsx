@@ -165,7 +165,7 @@ describe('BeadsDetailPane', () => {
     expect(onOpenIssue).toHaveBeenCalledWith('cwf.1')
   })
 
-  it('starts a worktree for the open issue', () => {
+  it('starts a worktree from a keyboard-reachable button (getByRole only finds it because it is in the a11y tree)', () => {
     installState({ data: DETAILS, error: null, loading: false, token: 'h1' })
     const onStartWorktree = vi.fn()
     render(

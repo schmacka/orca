@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { getMatchingLinkedTaskSourceContext } from '../../../hooks/useComposerState'
 import { normalizeTaskSourceContext } from '../../../../../shared/task-source-context'
-import { shouldPreserveWorkspaceSourceOnRepoChange } from '../../../../../shared/new-workspace/workspace-source'
 import { normalizeWorkspaceLinkedItem } from '../../../../../shared/workspace-linked-item'
 import { toFolderWorkspaceLinkedTask } from '../../sidebar/folder-workspace-composer-helpers'
 import {
@@ -45,19 +44,27 @@ describe('buildBeadsWorkspaceSeed', () => {
 describe('buildBeadsTaskSourceContext', () => {
   const REPO = { id: 'repo-1', path: '/work/app', connectionId: null, executionHostId: null }
 
+  // Why: no `!`/`as` — a throw-guard narrows `TaskSourceContext | null` for the rest
+  // of the test instead of asserting the type away.
+  function requireContext(repo: typeof REPO) {
+    const context = buildBeadsTaskSourceContext(repo)
+    if (!context) {
+      throw new Error('expected buildBeadsTaskSourceContext to return a context')
+    }
+    return context
+  }
+
   it('normalizes to itself — projectId is never empty', () => {
-    const context = buildBeadsTaskSourceContext(REPO)
+    const context = requireContext(REPO)
+    // Why: normalizeTaskSourceContext always emits every key (null for absent optional
+    // ones); a hand-rolled literal that omits them would fail this even though it
+    // "looks" equal — route production code through the same normalizer instead.
     expect(normalizeTaskSourceContext(context)).toEqual(context)
   })
 
   it('matches the linked item it was built alongside', () => {
-    const context = buildBeadsTaskSourceContext(REPO)
+    const context = requireContext(REPO)
     const item = buildBeadsLinkedItem({ id: 'cwf.3', title: 'Run the playtest' }, 'repo-1')
     expect(getMatchingLinkedTaskSourceContext(item, context)).toBe(context)
-  })
-
-  it('does not carry over on a repo change — a bead id means nothing in another repo', () => {
-    const item = buildBeadsLinkedItem({ id: 'cwf.3', title: 'Run the playtest' }, 'repo-1')
-    expect(shouldPreserveWorkspaceSourceOnRepoChange(item)).toBe(false)
   })
 })
