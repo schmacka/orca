@@ -38,6 +38,7 @@ import {
   resolveCreateParentSelector
 } from './worktree-create-parent-selector'
 import { getOptionalLinearIssueLinkFlag } from './worktree-linear-issue-link'
+import { getOptionalBeadsIssueLinkFlag } from './worktree-beads-issue-link'
 
 function assertParentWorktreeFlagsCompatible(flags: Map<string, string | boolean>): void {
   if (flags.has('parent-worktree') && flags.get('no-parent') === true) {
@@ -216,6 +217,7 @@ export const WORKTREE_HANDLERS: Record<string, CommandHandler> = {
       }
     }
     const linearIssueLink = getOptionalLinearIssueLinkFlag(flags, 'linear-issue')
+    const beadsIssueLink = getOptionalBeadsIssueLinkFlag(flags, 'beads-issue')
     const activate = flags.get('activate') === true || flags.get('run-hooks') === true
     const name = getRequiredStringFlag(flags, 'name')
     const result = await client.call<RuntimeWorktreeCreateResult>('worktree.create', {
@@ -226,6 +228,7 @@ export const WORKTREE_HANDLERS: Record<string, CommandHandler> = {
       baseBranch: getOptionalStringFlag(flags, 'base-branch'),
       linkedIssue: getOptionalNumberFlag(flags, 'issue'),
       ...linearIssueLink,
+      ...beadsIssueLink,
       comment: getOptionalStringFlag(flags, 'comment'),
       runHooks: flags.get('run-hooks') === true,
       activate,
@@ -258,11 +261,15 @@ export const WORKTREE_HANDLERS: Record<string, CommandHandler> = {
     const linearIssueLink = getOptionalLinearIssueLinkFlag(flags, 'linear-issue', {
       allowNull: true
     })
+    const beadsIssueLink = getOptionalBeadsIssueLinkFlag(flags, 'beads-issue', {
+      allowNull: true
+    })
     const result = await client.call<{ worktree: RuntimeWorktreeRecord }>('worktree.set', {
       worktree: await getRequiredWorktreeSelector(flags, 'worktree', cwd, client),
       displayName: getOptionalStringFlag(flags, 'display-name'),
       linkedIssue: getOptionalNullableNumberFlag(flags, 'issue'),
       ...linearIssueLink,
+      ...beadsIssueLink,
       comment: getOptionalStringFlag(flags, 'comment'),
       workspaceStatus: getOptionalStringFlag(flags, 'workspace-status'),
       parentWorktree: await getOptionalWorktreeSelector(flags, 'parent-worktree', cwd, client),

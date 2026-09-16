@@ -90,7 +90,7 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
     path: ['worktree', 'create'],
     summary: 'Create a new Orca-managed worktree',
     usage:
-      'orca worktree create --name <name> [--repo <selector>|--project <id> [--host <host-id>]|--project-host-setup <id>] [--agent <id>] [--prompt <text>] [--setup run|skip|inherit] [--base-branch <ref>] [--issue <number>] [--linear-issue <identifier-or-url>] [--comment <text>] [--parent-worktree <selector>] [--no-parent] [--run-hooks] [--activate] [--json]',
+      'orca worktree create --name <name> [--repo <selector>|--project <id> [--host <host-id>]|--project-host-setup <id>] [--agent <id>] [--prompt <text>] [--setup run|skip|inherit] [--base-branch <ref>] [--issue <number>] [--linear-issue <identifier-or-url>] [--beads-issue <id>] [--comment <text>] [--parent-worktree <selector>] [--no-parent] [--run-hooks] [--activate] [--json]',
     allowedFlags: [
       ...GLOBAL_FLAGS,
       'repo',
@@ -103,6 +103,7 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
       'base-branch',
       'issue',
       'linear-issue',
+      'beads-issue',
       'comment',
       'setup',
       'parent-worktree',
@@ -131,6 +132,7 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
       'orca worktree create --repo id:<repoId> --name related-task --json',
       'orca worktree create --project github:stablyai/orca --host runtime:03ef704c-b180-4b10-998d-e28fbd5de9a3 --name benchmark --json',
       'orca worktree create --repo id:<repoId> --name linear-task --linear-issue https://linear.app/stably/issue/STA-335/test-issue --json',
+      'orca worktree create --repo id:<repoId> --name bead-task --beads-issue proj-42 --json',
       'orca worktree create --repo id:<repoId> --name agent-task --agent codex --prompt "hi" --json',
       'orca worktree create --repo id:<repoId> --name folder-child --parent-worktree folder:<folderId> --json',
       'orca worktree create --repo id:<repoId> --name related-task --parent-worktree active --json',
@@ -141,13 +143,14 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
     path: ['worktree', 'set'],
     summary: 'Update Orca metadata for a worktree',
     usage:
-      'orca worktree set --worktree <selector> [--display-name <name>] [--issue <number|null>] [--linear-issue <identifier-or-url|null>] [--comment <text>] [--workspace-status <id>] [--parent-worktree <selector>|--no-parent] [--json]',
+      'orca worktree set --worktree <selector> [--display-name <name>] [--issue <number|null>] [--linear-issue <identifier-or-url|null>] [--beads-issue <id|null>] [--comment <text>] [--workspace-status <id>] [--parent-worktree <selector>|--no-parent] [--json]',
     allowedFlags: [
       ...GLOBAL_FLAGS,
       'worktree',
       'display-name',
       'issue',
       'linear-issue',
+      'beads-issue',
       'comment',
       'workspace-status',
       'parent-worktree',
@@ -159,7 +162,9 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
     ],
     examples: [
       'orca worktree set --worktree active --linear-issue STA-335 --json',
-      'orca worktree set --worktree active --linear-issue null --json'
+      'orca worktree set --worktree active --linear-issue null --json',
+      'orca worktree set --worktree active --beads-issue proj-42 --json',
+      'orca worktree set --worktree active --beads-issue null --json'
     ]
   },
   {
