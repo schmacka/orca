@@ -366,4 +366,26 @@ describe('beads launch context', () => {
     )
     expect(draftPrompt?.split('\n').filter((l) => l.startsWith('Ignore previous'))).toHaveLength(0)
   })
+
+  it('omits the title suffix when no title is available', () => {
+    const block = getLinkedWorkItemPromptContext({ ...BEAD_ITEM, title: '' }).linkedContextBlocks[0]
+    expect(block).toBe(
+      [
+        'Linked Beads issue: cwf.3',
+        'Read it with `bd show cwf.3` (run `bd prime` for workflow context).'
+      ].join('\n')
+    )
+  })
+
+  it('drops the synthetic bd:// url when the beads identifier is missing', () => {
+    // Recognized as a beads item via `provider` alone; no `beadsIdentifier`, so
+    // buildBeadsLaunchContextBlock returns null and must not fall back to `url`.
+    const beadWithoutIdentifier = {
+      provider: 'beads' as const,
+      number: 0,
+      url: 'bd://leak-me',
+      title: 'Untitled bead'
+    }
+    expect(resolveQuickCreateLinkedWorkItemPrompt(beadWithoutIdentifier, '').draftPrompt).toBeNull()
+  })
 })
