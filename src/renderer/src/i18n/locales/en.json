@@ -16974,7 +16974,25 @@
           "filterLabelsHint": "Issues must have all selected labels",
           "filterAssignee": "Assignee",
           "clearFilters": "Clear filters",
-          "searchOverridesPreset": "Search looks at every issue and ignores the preset and epic filter."
+          "searchOverridesPreset": "Search looks at every issue and ignores the preset and epic filter.",
+          "copiedId": "Copied {{id}}",
+          "copyIdLabel": "Copy issue ID",
+          "blockedBy": "Blocked by",
+          "openIssue": "Open",
+          "relations": "Relations",
+          "relationParent": "Parent",
+          "relationBlockedBy": "Blocked by",
+          "relationBlocks": "Blocks",
+          "relationChildren": "Children",
+          "relationRelated": "Related",
+          "noRelations": "No relations",
+          "sectionDescription": "Description",
+          "sectionAcceptance": "Acceptance criteria",
+          "sectionDesign": "Design",
+          "sectionNotes": "Notes",
+          "noDescription": "No description",
+          "commentsHeading": "Comments ({{count}})",
+          "noComments": "No comments"
         }
       }
     },

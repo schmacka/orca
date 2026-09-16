@@ -3,6 +3,7 @@ import '@testing-library/jest-dom/vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { FALLBACK_BEADS_SCHEMA } from '../../../../../shared/beads/beads-schema'
+import type { BeadsIssueDetails } from '../../../../../shared/beads/beads-issue-types'
 
 const mocks = vi.hoisted(() => ({
   state: {} as Record<string, unknown>,
@@ -21,7 +22,7 @@ import { BeadsDetailPane } from './BeadsDetailPane'
 
 const REPO = { id: 'r1', path: '/work/app', connectionId: null, executionHostId: null }
 
-const DETAILS = {
+const DETAILS: BeadsIssueDetails = {
   issue: {
     id: 'cwf.3',
     title: 'Run the playtest',
@@ -33,7 +34,7 @@ const DETAILS = {
     labels: ['evaluation'],
     createdAt: '',
     updatedAt: '',
-    dependencyCount: 1,
+    dependencyCount: 2,
     dependentCount: 0,
     commentCount: 1,
     blockedBy: [],
@@ -47,16 +48,45 @@ const DETAILS = {
       priority: 1,
       issueType: 'task',
       dependencyType: 'blocks'
+    },
+    {
+      id: 'x.9',
+      title: 'Explore mechanic',
+      status: 'open',
+      priority: 3,
+      issueType: 'task',
+      dependencyType: 'related'
     }
   ],
   dependents: [],
   comments: [{ id: 'c1', author: 'ada', text: 'Looks good', createdAt: '2026-09-15T10:00:00Z' }]
 }
 
-function installState(entry: unknown) {
+const NO_RELATIONS_DETAILS: BeadsIssueDetails = {
+  issue: {
+    id: 'cwf.3',
+    title: 'Run the playtest',
+    status: 'open',
+    priority: 2,
+    issueType: 'task',
+    labels: [],
+    createdAt: '',
+    updatedAt: '',
+    dependencyCount: 0,
+    dependentCount: 0,
+    commentCount: 0,
+    blockedBy: [],
+    dependencyEdges: []
+  },
+  dependencies: [],
+  dependents: [],
+  comments: []
+}
+
+function installState(entry: unknown, changeToken: string | null = 'h1') {
   mocks.state = {
     beadsRepos: {
-      r1: { status: {}, schema: {}, changeToken: 'h1', lists: {}, details: { 'cwf.3': entry } }
+      r1: { status: {}, schema: {}, changeToken, lists: {}, details: { 'cwf.3': entry } }
     },
     loadBeadsDetails: mocks.loadBeadsDetails
   }
@@ -86,6 +116,20 @@ describe('BeadsDetailPane', () => {
     expect(screen.getByRole('status')).toBeInTheDocument()
   })
 
+  it('does not load details while the change token has not answered yet', () => {
+    installState(undefined, null)
+    render(
+      <BeadsDetailPane
+        repo={REPO}
+        issueId="cwf.3"
+        schema={FALLBACK_BEADS_SCHEMA}
+        onOpenIssue={vi.fn()}
+      />
+    )
+    expect(mocks.loadBeadsDetails).not.toHaveBeenCalled()
+    expect(screen.getByRole('status')).toBeInTheDocument()
+  })
+
   it('renders header, blocked callout, relations, text and comments', () => {
     installState({ data: DETAILS, error: null, loading: false, token: 'h1' })
     const onOpenIssue = vi.fn()
@@ -105,6 +149,35 @@ describe('BeadsDetailPane', () => {
     expect(screen.getByText('Looks good')).toBeInTheDocument()
     fireEvent.click(screen.getAllByRole('button', { name: /cwf\.1/ })[0])
     expect(onOpenIssue).toHaveBeenCalledWith('cwf.1')
+  })
+
+  it('opens the related issue when a relation row (not the blocked callout) is clicked', () => {
+    installState({ data: DETAILS, error: null, loading: false, token: 'h1' })
+    const onOpenIssue = vi.fn()
+    render(
+      <BeadsDetailPane
+        repo={REPO}
+        issueId="cwf.3"
+        schema={FALLBACK_BEADS_SCHEMA}
+        onOpenIssue={onOpenIssue}
+      />
+    )
+    fireEvent.click(screen.getByRole('button', { name: /x\.9/ }))
+    expect(onOpenIssue).toHaveBeenCalledWith('x.9')
+  })
+
+  it('shows "No relations" and hides the blocked callout when nothing relates', () => {
+    installState({ data: NO_RELATIONS_DETAILS, error: null, loading: false, token: 'h1' })
+    render(
+      <BeadsDetailPane
+        repo={REPO}
+        issueId="cwf.3"
+        schema={FALLBACK_BEADS_SCHEMA}
+        onOpenIssue={vi.fn()}
+      />
+    )
+    expect(screen.getByText('No relations')).toBeInTheDocument()
+    expect(screen.queryByText('Blocked by')).not.toBeInTheDocument()
   })
 
   it('shows the error message', () => {

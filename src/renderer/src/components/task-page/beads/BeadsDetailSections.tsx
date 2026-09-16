@@ -150,7 +150,12 @@ export function BeadsDetailSections({
     <div className="flex flex-col gap-4 p-4">
       <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground">
-          <Button variant="ghost" size="xs" onClick={() => void copyId()}>
+          <Button
+            variant="ghost"
+            size="xs"
+            aria-label={translate('auto.components.task-page.beads.copyIdLabel', 'Copy issue ID')}
+            onClick={() => void copyId()}
+          >
             <span className="font-mono">{issue.id}</span>
             <Copy aria-hidden className="size-3" />
           </Button>
