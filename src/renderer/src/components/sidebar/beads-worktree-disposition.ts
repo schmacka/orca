@@ -7,6 +7,15 @@ import type { WorkspaceLinkedItem } from '../../../../shared/worktree/types'
 
 export type BeadsDisposition = 'close' | 'unclaim' | 'leave'
 
+// Why no status check: knowing whether the bead is still open needs an async
+// `bd` read, while skip-confirm's decision must stay synchronous — so this
+// forces the dialog open on any linked bead, open or already closed.
+export function hasLinkedBeadsWorkItem(
+  linkedWorkItem: Pick<WorkspaceLinkedItem, 'provider' | 'beadsIdentifier'> | null | undefined
+): boolean {
+  return linkedWorkItem?.provider === 'beads' && Boolean(linkedWorkItem.beadsIdentifier)
+}
+
 export function beadsDispositionNeeded(input: {
   linkedWorkItem: Pick<WorkspaceLinkedItem, 'provider'> | null
   beadStatusCategory: BeadsStatusCategory | null

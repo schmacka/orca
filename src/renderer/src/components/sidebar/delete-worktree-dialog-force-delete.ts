@@ -7,8 +7,12 @@ import {
 } from '../../../../shared/worktree/removal'
 import type { RemoveWorktreeOptions } from '@/store/slices/worktree-removal-options'
 import type { RendererRemoveWorktreeResult } from '@/store/slices/renderer-remove-worktree-result'
+import type { ExecutionHostId } from '../../../../shared/execution-host'
+import type { BeadsResult } from '../../../../shared/beads/beads-contract'
+import type { BeadsIssueDetails } from '../../../../shared/beads/beads-issue-types'
 import { prepareActiveWorktreeFocusAfterDelete } from './active-worktree-focus-after-delete'
 import { showWorkspaceListChangedToast } from './stale-workspace-list-toast'
+import { runBeadsDispositionAfterDelete } from './beads-disposition-after-delete'
 
 /**
  * The dialog's explicit "Force Delete" retry.
@@ -27,8 +31,18 @@ export function runDialogForceDelete(args: {
   ) => Promise<({ ok: true } & RendererRemoveWorktreeResult) | { ok: false; error: string }>
   closeModal: () => void
   onDeleted: ((deleted: WorktreeRemovalTarget[]) => void) | null | undefined
+  hostId: ExecutionHostId | null
+  runBeadsDisposition: () => Promise<BeadsResult<BeadsIssueDetails> | null>
 }): void {
-  const { worktreeId, currentWorktrees, removeWorktree, closeModal, onDeleted } = args
+  const {
+    worktreeId,
+    currentWorktrees,
+    removeWorktree,
+    closeModal,
+    onDeleted,
+    hostId,
+    runBeadsDisposition
+  } = args
   // Why: this branch preserves the legacy "Force Delete" button behavior
   // inside the dialog — it runs the destructive retry directly without
   // the shared toast wrapper. Close immediately because workspace cards
@@ -66,7 +80,14 @@ export function runDialogForceDelete(args: {
         return
       }
       commitFocus()
-      onDeleted?.([toWorktreeRemovalTarget(forceTarget)])
+      const deleted = [toWorktreeRemovalTarget(forceTarget)]
+      onDeleted?.(deleted)
+      runBeadsDispositionAfterDelete({
+        deletedTargets: deleted,
+        worktreeId,
+        hostId,
+        run: runBeadsDisposition
+      })
     })
     .catch((err: unknown) => {
       toast.error(

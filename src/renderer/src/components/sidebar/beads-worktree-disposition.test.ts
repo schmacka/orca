@@ -63,7 +63,11 @@ vi.mock('@/store', () => ({
   }
 }))
 
-import { beadsDispositionNeeded, runBeadsDisposition } from './beads-worktree-disposition'
+import {
+  beadsDispositionNeeded,
+  hasLinkedBeadsWorkItem,
+  runBeadsDisposition
+} from './beads-worktree-disposition'
 
 const BEAD_WORKTREE = {
   linkedWorkItem: { provider: 'beads' as const, beadsIdentifier: 'cwf.3' },
@@ -119,6 +123,25 @@ describe('beadsDispositionNeeded', () => {
 
   it('stays quiet when the status is unknown, rather than prompting about a bead it cannot describe', () => {
     expect(beadsDispositionNeeded({ ...BEAD_WORKTREE, beadStatusCategory: null })).toBe(false)
+  })
+})
+
+describe('hasLinkedBeadsWorkItem', () => {
+  it('is true for a beads item with an identifier, regardless of bead status', () => {
+    expect(hasLinkedBeadsWorkItem({ provider: 'beads', beadsIdentifier: 'cwf.3' })).toBe(true)
+  })
+
+  it('is false for a beads item missing its identifier', () => {
+    expect(hasLinkedBeadsWorkItem({ provider: 'beads' })).toBe(false)
+  })
+
+  it('is false for another provider', () => {
+    expect(hasLinkedBeadsWorkItem({ provider: 'jira', beadsIdentifier: 'cwf.3' })).toBe(false)
+  })
+
+  it('is false for a missing linked item', () => {
+    expect(hasLinkedBeadsWorkItem(null)).toBe(false)
+    expect(hasLinkedBeadsWorkItem(undefined)).toBe(false)
   })
 })
 

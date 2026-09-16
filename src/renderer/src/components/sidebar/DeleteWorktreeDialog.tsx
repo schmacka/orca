@@ -8,11 +8,6 @@ import {
 } from '@/components/ui/dialog'
 import { useAppStore } from '@/store'
 import { useAllWorktrees } from '@/store/selectors'
-import { runWorktreeDeletesInParallel } from './delete-worktree-flow'
-import {
-  composeWorktreeHostIdentity,
-  getWorktreeHostIdentity
-} from '../../../../shared/worktree/host-qualified-identity'
 import { getWorkspaceDeleteLineage } from './workspace-delete-lineage'
 import { DeleteWorktreeLineageNotice } from './DeleteWorktreeLineageNotice'
 import { DeleteWorktreeSkipConfirmOption } from './DeleteWorktreeSkipConfirmOption'
@@ -34,8 +29,15 @@ import { useDeleteWorktreeStatusHydration } from './use-delete-worktree-status-h
 import { useConfirmedWorktreeDeleteTargets } from './use-confirmed-worktree-delete-targets'
 import { runLineageDeleteAll } from './delete-worktree-lineage-delete-all'
 import { runDialogForceDelete } from './delete-worktree-dialog-force-delete'
+import { runDialogConfirmedDelete } from './delete-worktree-dialog-confirmed-delete'
 import { getDeleteStateForWorktreeHost } from './worktree-delete-state-host-match'
 import { useSidebarHostScopeOptions } from './use-sidebar-host-scope-options'
+import { useBeadsDisposition } from './use-beads-disposition'
+import { BeadsWorktreeDisposition } from './BeadsWorktreeDisposition'
+import {
+  resolveDeleteWorktreeDialogTarget,
+  resolveDeleteWorktreeDialogTargets
+} from './delete-worktree-dialog-target-resolution'
 
 const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
   const activeModal = useAppStore((s) => s.activeModal)
@@ -84,33 +86,26 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
       ? (modalData.onDeleted as (targets: WorktreeRemovalTarget[]) => void)
       : null
   const forceOnConfirm = modalData.forceOnConfirm !== false
-  const worktree = useMemo(() => {
-    if (!worktreeId) {
-      return null
-    }
-    const identity = worktreeDeleteIdentities.find((item) => item.id === worktreeId)
-    return (
-      allWorktrees.find(
-        (item) => item.id === worktreeId && (!identity?.hostId || item.hostId === identity.hostId)
-      ) ?? null
-    )
-  }, [allWorktrees, worktreeDeleteIdentities, worktreeId])
-  const worktrees = useMemo(() => {
-    if (worktreeIds.length === 0) {
-      return []
-    }
-    if (worktreeDeleteIdentities.length > 0) {
-      const selected = new Set(
-        worktreeDeleteIdentities.map((identity) =>
-          composeWorktreeHostIdentity(identity.hostId, identity.id)
-        )
-      )
-      return allWorktrees.filter((item) => selected.has(getWorktreeHostIdentity(item)))
-    }
-    const selected = new Set(worktreeIds)
-    return allWorktrees.filter((item) => selected.has(item.id))
-  }, [allWorktrees, worktreeDeleteIdentities, worktreeIds])
+  const worktree = useMemo(
+    () => resolveDeleteWorktreeDialogTarget(allWorktrees, worktreeDeleteIdentities, worktreeId),
+    [allWorktrees, worktreeDeleteIdentities, worktreeId]
+  )
+  const worktrees = useMemo(
+    () => resolveDeleteWorktreeDialogTargets(allWorktrees, worktreeDeleteIdentities, worktreeIds),
+    [allWorktrees, worktreeDeleteIdentities, worktreeIds]
+  )
   const repoMap = useMemo(() => new Map(repos.map((repo) => [repo.id, repo])), [repos])
+  const beadsDisposition = useBeadsDisposition({ isOpen, worktree, repoMap })
+  // Why one shared shape: all three delete paths need the same identity to
+  // decide whether their target is the one the disposition was captured for.
+  const beadsDispositionTarget = useMemo(
+    () => ({
+      worktreeId,
+      hostId: worktree?.hostId ?? null,
+      runBeadsDisposition: beadsDisposition.run
+    }),
+    [worktreeId, worktree, beadsDisposition.run]
+  )
   const isBatchDelete = worktreeIds.length > 1
   const isFolderWorkspaceDelete = !isBatchDelete && getIsFolderWorkspaceDelete(repoMap, worktree)
   const folderWorkspaceDeleteCount = useMemo(
@@ -273,27 +268,23 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
       }
       if (force) {
         runDialogForceDelete({
-          worktreeId,
           currentWorktrees,
           removeWorktree,
           closeModal,
-          onDeleted
+          onDeleted,
+          ...beadsDispositionTarget
         })
       } else {
         // Why: this modal is the destructive confirmation for the workspace
         // folder. Running a non-force remove here just turns dirty files into
         // a redundant Force Delete toast after the user already confirmed.
-        const deletePromise = runWorktreeDeletesInParallel(currentWorktrees, {
-          force: forceOnConfirm,
-          onForceDeleted: handleForceDeletedFromToast
-        })
-        // Why: the workspace card owns the in-progress feedback, so the
-        // confirmation should get out of the way as soon as deletion begins.
-        closeModal()
-        void deletePromise.then((deletedTargets) => {
-          if (deletedTargets.length > 0) {
-            onDeleted?.(deletedTargets)
-          }
+        runDialogConfirmedDelete({
+          currentWorktrees,
+          forceOnConfirm,
+          onForceDeleted: handleForceDeletedFromToast,
+          closeModal,
+          onDeleted,
+          ...beadsDispositionTarget
         })
       }
     },
@@ -308,7 +299,7 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
       removeWorktree,
       worktreeIds.length,
       worktreeDeleteIdentities,
-      worktreeId,
+      beadsDispositionTarget,
       resolveConfirmedTargets
     ]
   )
@@ -321,7 +312,8 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
       forceOnConfirm,
       onForceDeleted: handleForceDeletedFromToast,
       closeModal,
-      onDeleted
+      onDeleted,
+      ...beadsDispositionTarget
     })
   }, [
     closeModal,
@@ -330,7 +322,8 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
     lineageDelete.deleteAllTargets.length,
     lineageDeleteIdentities,
     onDeleted,
-    resolveConfirmedTargets
+    resolveConfirmedTargets,
+    beadsDispositionTarget
   ])
 
   return (
@@ -398,6 +391,14 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
           deleteError={deleteError}
         />
 
+        <BeadsWorktreeDisposition
+          needed={beadsDisposition.needed}
+          disposition={beadsDisposition.disposition}
+          onDispositionChange={beadsDisposition.setDisposition}
+          reason={beadsDisposition.reason}
+          onReasonChange={beadsDisposition.setReason}
+        />
+
         <DeleteWorktreeSkipConfirmOption
           showDontAskAgain={!isMainWorktree && allowSkipConfirm && !canForceDelete}
           dontAskAgain={dontAskAgain}
@@ -413,6 +414,7 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
             worktreeCount={worktrees.length}
             canDeleteAllLineage={canDeleteAllLineage}
             lineageDeleteTargetCount={lineageDelete.deleteAllTargets.length}
+            disableConfirm={beadsDisposition.needed && !beadsDisposition.canSubmit}
             onCancel={() => handleOpenChange(false)}
             onForceDelete={() => handleDelete(true)}
             onDelete={canDeleteAllLineage ? handleDeleteAll : () => handleDelete(false)}

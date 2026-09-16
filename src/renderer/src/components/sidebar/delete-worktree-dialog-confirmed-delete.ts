@@ -3,22 +3,17 @@ import type { WorktreeRemovalTarget } from '../../../../shared/worktree/removal'
 import type { ExecutionHostId } from '../../../../shared/execution-host'
 import type { BeadsResult } from '../../../../shared/beads/beads-contract'
 import type { BeadsIssueDetails } from '../../../../shared/beads/beads-issue-types'
-import type { WorktreeDeleteIdentity } from './worktree-delete-request'
 import { runWorktreeDeletesInParallel } from './delete-worktree-flow'
 import { runBeadsDispositionAfterDelete } from './beads-disposition-after-delete'
 
 /**
- * "Delete all" for a lineage: the modal already confirmed every affected
- * workspace, so children do not raise their own force prompts, and the modal
- * closes because progress is shown on the workspace cards instead.
+ * The dialog's primary (non-force) confirmed delete.
+ *
+ * Runs through the shared toast wrapper, closing immediately because the
+ * workspace cards already show the deleting state while it runs.
  */
-export function runLineageDeleteAll(args: {
-  deleteAllTargetCount: number
-  lineageDeleteIdentities: readonly WorktreeDeleteIdentity[]
-  resolveConfirmedTargets: (
-    identities: readonly WorktreeDeleteIdentity[],
-    expectedCount: number
-  ) => Worktree[] | null
+export function runDialogConfirmedDelete(args: {
+  currentWorktrees: readonly Worktree[]
   forceOnConfirm: boolean
   onForceDeleted: (target: WorktreeRemovalTarget) => void
   closeModal: () => void
@@ -27,20 +22,12 @@ export function runLineageDeleteAll(args: {
   hostId: ExecutionHostId | null
   runBeadsDisposition: () => Promise<BeadsResult<BeadsIssueDetails> | null>
 }): void {
-  if (args.deleteAllTargetCount <= 1) {
-    return
-  }
-  const currentTargets = args.resolveConfirmedTargets(
-    args.lineageDeleteIdentities,
-    args.deleteAllTargetCount
-  )
-  if (!currentTargets) {
-    return
-  }
-  const deletePromise = runWorktreeDeletesInParallel(currentTargets, {
+  const deletePromise = runWorktreeDeletesInParallel(args.currentWorktrees, {
     force: args.forceOnConfirm,
     onForceDeleted: args.onForceDeleted
   })
+  // Why: the workspace card owns the in-progress feedback, so the
+  // confirmation should get out of the way as soon as deletion begins.
   args.closeModal()
   void deletePromise.then((deletedTargets) => {
     if (deletedTargets.length > 0) {

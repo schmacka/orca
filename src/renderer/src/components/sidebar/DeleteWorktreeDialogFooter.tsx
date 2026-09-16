@@ -11,6 +11,7 @@ export function DeleteWorktreeDialogFooter({
   worktreeCount,
   canDeleteAllLineage,
   lineageDeleteTargetCount,
+  disableConfirm = false,
   onCancel,
   onForceDelete,
   onDelete,
@@ -23,6 +24,9 @@ export function DeleteWorktreeDialogFooter({
   worktreeCount: number
   canDeleteAllLineage: boolean
   lineageDeleteTargetCount: number
+  // Why: the beads disposition refuses "Close" with an empty reason — without
+  // this the refusal is real only in the hook and the button no-ops silently.
+  disableConfirm?: boolean
   onCancel: () => void
   onForceDelete: () => void
   onDelete: () => void
@@ -52,7 +56,7 @@ export function DeleteWorktreeDialogFooter({
           ref={confirmButtonRef}
           variant="destructive"
           onClick={canForceDelete ? onForceDelete : onDelete}
-          disabled={isDeleting}
+          disabled={isDeleting || disableConfirm}
         >
           {isDeleting ? <LoaderCircle className="size-4 animate-spin" /> : <Trash2 />}
           {label}

@@ -11,6 +11,7 @@ import { resolveSshWorkspaceForget } from './ssh-workspace-forget-resolution'
 import { isPairedWebClientWindow } from '@/lib/desktop-window-chrome'
 import { parseWorkspaceKey } from '../../../../shared/workspace-scope'
 import { getRepoExecutionHostId } from '../../../../shared/execution-host'
+import { hasLinkedBeadsWorkItem } from './beads-worktree-disposition'
 import {
   resolveWorktreeBatchDeleteTargets,
   toWorktreeDeleteIdentities,
@@ -100,8 +101,11 @@ export function runWorktreeDelete(worktreeId: string, options: WorktreeDeleteOpt
     state.worktreeLineageById
   )
   const hasLineageChildren = deleteLineage.descendants.length > 0
+  // Why: an open bead's status needs an async `bd` read; forcing the dialog on
+  // any linked bead (open or closed) keeps this decision synchronous.
+  const forcesDialogOpen = hasLineageChildren || hasLinkedBeadsWorkItem(target.linkedWorkItem)
   const skipConfirm = state.settings?.skipDeleteWorktreeConfirm ?? false
-  if (skipConfirm && !hasLineageChildren) {
+  if (skipConfirm && !forcesDialogOpen) {
     void runWorktreeDeleteWithToast(toWorktreeRemovalTarget(target), target.displayName)
     return
   }
@@ -113,7 +117,7 @@ export function runWorktreeDelete(worktreeId: string, options: WorktreeDeleteOpt
           lineageDeleteIdentities: toWorktreeDeleteIdentities(deleteLineage.deleteAllTargets)
         }
       : {}),
-    ...(hasLineageChildren ? { allowSkipConfirm: false } : {})
+    ...(forcesDialogOpen ? { allowSkipConfirm: false } : {})
   })
 }
 
@@ -153,10 +157,13 @@ export function runWorktreeBatchDelete(
         )
       : null
   const singleTargetHasLineageChildren = (singleTargetLineage?.descendants.length ?? 0) > 0
+  const singleTargetHasLinkedBead =
+    targets.length === 1 && hasLinkedBeadsWorkItem(targets[0].linkedWorkItem)
   const skipConfirm =
     !options.forceConfirm &&
     targets.length === 1 &&
     !singleTargetHasLineageChildren &&
+    !singleTargetHasLinkedBead &&
     (state.settings?.skipDeleteWorktreeConfirm ?? false)
   if (skipConfirm) {
     void runWorktreeDeletesInParallel(targets, {
@@ -180,7 +187,7 @@ export function runWorktreeBatchDelete(
             )
           }
         : {}),
-      ...(options.forceConfirm || singleTargetHasLineageChildren
+      ...(options.forceConfirm || singleTargetHasLineageChildren || singleTargetHasLinkedBead
         ? { allowSkipConfirm: false }
         : {}),
       ...(options.onDeleted ? { onDeleted: options.onDeleted } : {}),

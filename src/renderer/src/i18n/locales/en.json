@@ -6302,7 +6302,8 @@
         "beadsDispositionLeave": "Leave as is",
         "beadsDispositionLegend": "What should happen to the linked bead?",
         "beadsDispositionReasonLabel": "Reason",
-        "beadsDispositionReasonPlaceholder": "Why is this bead closing?"
+        "beadsDispositionReasonPlaceholder": "Why is this bead closing?",
+        "beadsDispositionAfterDeleteFailed": "Could not update the linked bead"
       },
       "shared": {
         "useDaemonActions": {

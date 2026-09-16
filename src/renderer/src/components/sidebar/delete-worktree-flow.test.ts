@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => {
         displayName: string
         isMainWorktree: boolean
         hostId?: ExecutionHostId
+        linkedWorkItem?: { provider: string; beadsIdentifier?: string }
       }
     >(),
     repos: [] as { id: string; displayName: string; connectionId?: string }[],
@@ -104,6 +105,7 @@ function setWorktrees(
     displayName?: string
     isMainWorktree?: boolean
     hostId?: ExecutionHostId
+    linkedWorkItem?: { provider: string; beadsIdentifier?: string }
   }[]
 ): void {
   mocks.state.worktreeMap = new Map(
@@ -116,7 +118,8 @@ function setWorktrees(
         path: worktree.path ?? `/workspaces/${worktree.id}`,
         displayName: worktree.displayName ?? worktree.id,
         isMainWorktree: worktree.isMainWorktree ?? false,
-        ...(worktree.hostId ? { hostId: worktree.hostId } : {})
+        ...(worktree.hostId ? { hostId: worktree.hostId } : {}),
+        ...(worktree.linkedWorkItem ? { linkedWorkItem: worktree.linkedWorkItem } : {})
       }
     ])
   )
@@ -484,6 +487,60 @@ describe('delete worktree flow', () => {
       ],
       allowSkipConfirm: false
     })
+  })
+
+  it('forces the dialog open for a worktree with a linked bead even when confirmation is skipped', () => {
+    mocks.state.settings = { skipDeleteWorktreeConfirm: true }
+    setWorktrees([
+      {
+        id: 'wt-1',
+        displayName: 'one',
+        linkedWorkItem: { provider: 'beads', beadsIdentifier: 'cwf.3' }
+      }
+    ])
+
+    runWorktreeDelete('wt-1')
+
+    expect(mocks.state.removeWorktree).not.toHaveBeenCalled()
+    expect(mocks.state.openModal).toHaveBeenCalledWith('delete-worktree', {
+      worktreeId: 'wt-1',
+      worktreeDeleteIdentities: [{ id: 'wt-1', instanceId: 'wt-1-instance' }],
+      allowSkipConfirm: false
+    })
+  })
+
+  it('forces the single-target batch dialog open for a worktree with a linked bead', () => {
+    mocks.state.settings = { skipDeleteWorktreeConfirm: true }
+    setWorktrees([
+      {
+        id: 'wt-1',
+        displayName: 'one',
+        linkedWorkItem: { provider: 'beads', beadsIdentifier: 'cwf.3' }
+      }
+    ])
+
+    const started = runWorktreeBatchDelete(['wt-1'])
+
+    expect(started).toBe(true)
+    expect(mocks.state.removeWorktree).not.toHaveBeenCalled()
+    expect(mocks.state.openModal).toHaveBeenCalledWith('delete-worktree', {
+      worktreeId: 'wt-1',
+      worktreeDeleteIdentities: [{ id: 'wt-1', instanceId: 'wt-1-instance' }],
+      allowSkipConfirm: false
+    })
+  })
+
+  it('does not force the dialog open for a non-beads linked item', () => {
+    mocks.state.settings = { skipDeleteWorktreeConfirm: true }
+    setWorktrees([{ id: 'wt-1', displayName: 'one', linkedWorkItem: { provider: 'github' } }])
+
+    runWorktreeDelete('wt-1')
+
+    expect(mocks.state.openModal).not.toHaveBeenCalled()
+    expect(mocks.state.removeWorktree).toHaveBeenCalledWith(
+      { id: 'wt-1', executionHostId: null },
+      false
+    )
   })
 
   it('reports a stale list instead of silently dropping a delete whose row vanished', () => {
