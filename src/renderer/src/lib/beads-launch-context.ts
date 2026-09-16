@@ -45,10 +45,9 @@ export function buildBeadsLaunchContextBlock(args: BeadsLaunchContextArgs): stri
   // title stands alone" pill convention in workspace-source.ts) — strip a leading
   // identifier here or this line doubles it: "<id> — <id> <title>".
   const rawTitle = args.title?.trim() ?? ''
-  const strippedTitle = rawTitle.replace(
-    new RegExp(`^${escapeRegex(identifier)}\\s*[:-]?\\s*`, 'i'),
-    ''
-  )
+  // Why no /i flag: every real caller passes the case-exact `${issue.id} ${issue.title}`
+  // (buildBeadsLinkedItem), so case-insensitive matching here has no caller to serve.
+  const strippedTitle = rawTitle.replace(new RegExp(`^${escapeRegex(identifier)}\\s*[:-]?\\s*`), '')
   const title = escapeLinkedContextControlChars(strippedTitle)
   const summary = title
     ? `Linked Beads issue: ${safeIdentifier} — ${title}`

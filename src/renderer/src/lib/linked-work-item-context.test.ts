@@ -341,6 +341,31 @@ describe('beads launch context', () => {
     )
   })
 
+  // Why: buildBeadsLinkedItem (beads-start-worktree.ts) bakes the id into title as
+  // "<id> <title>" (the real WorkspaceLinkedItem shape, matching the composer pill's
+  // number===0 convention in workspace-source.ts) — unlike BEAD_ITEM's bare title
+  // above. Without stripping it here first, the line below doubles the id.
+  it('strips a leading identifier already baked into the title instead of doubling it', () => {
+    const productionShapeItem = { ...BEAD_ITEM, title: 'cwf.3 Fix launch context handoff' }
+    expect(getLinkedWorkItemPromptContext(productionShapeItem)).toEqual({
+      linkedUrls: [],
+      linkedContextBlocks: [EXPECTED_BEAD_BLOCK]
+    })
+  })
+
+  it('drops the title entirely when it is exactly the identifier, with no dash left dangling', () => {
+    const idOnlyItem = { ...BEAD_ITEM, title: 'cwf.3' }
+    expect(getLinkedWorkItemPromptContext(idOnlyItem)).toEqual({
+      linkedUrls: [],
+      linkedContextBlocks: [
+        [
+          'Linked Beads issue: cwf.3',
+          'Read it with `bd show cwf.3` (run `bd prime` for workflow context).'
+        ].join('\n')
+      ]
+    })
+  })
+
   // Why: also the regression guard for "without a linkedContext" required alongside
   // the epic-linkedContext test below — BEAD_ITEM carries no linkedContext, so this
   // must keep returning the plain two-line block character for character.
