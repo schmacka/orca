@@ -321,6 +321,10 @@ export type GlobalSettings = {
    *  - 'blank': blank terminal (no agent launched)
    *  - TuiAgent: a specific agent id */
   defaultTuiAgent: TuiAgent | 'blank' | null
+  /** Passed to bd writes as `--actor`. Empty input stores null; null lets bd's own default apply. */
+  beadsActor: string | null
+  /** Whether creating a worktree from a bead also claims it. Default true. */
+  beadsAutoClaim: boolean
   /** Agents hidden from picker/auto-launch; detection stays a raw PATH snapshot. */
   disabledTuiAgents: TuiAgent[]
   /** Master switch for the experimental plugin system. Off by default: no

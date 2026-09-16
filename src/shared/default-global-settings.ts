@@ -181,6 +181,8 @@ export function buildDefaultSettings(args: {
     terminalHiddenDeliveryGate: true,
     terminalModelQueryAuthority: true,
     defaultTuiAgent: null,
+    beadsActor: null,
+    beadsAutoClaim: true,
     disabledTuiAgents: [...DEFAULT_DISABLED_TUI_AGENTS],
     pluginSystemEnabled: false,
     disabledPlugins: [],

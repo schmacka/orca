@@ -15,6 +15,7 @@ import { useAppStore } from '@/store'
 import { SearchableSetting } from './SearchableSetting'
 import { SettingsSubsectionHeader } from './SettingsFormControls'
 import { BeadsSetupSteps, CodeHostSetupSteps, JiraSetupSteps } from './TaskSourceSimpleSetup'
+import { BeadsWorkflowSettings } from './BeadsWorkflowSettings'
 import { TaskSourceLinearSetup } from './TaskSourceLinearSetup'
 import { TaskSourceProviderCard } from './TaskSourceProviderCard'
 import {
@@ -241,11 +242,14 @@ export function TasksPane({ settings, updateSettings }: TasksPaneProps): React.J
                     onOpenIntegrations={() => openIntegrations(JIRA_INTEGRATION_SECTION_ID)}
                   />
                 ) : provider === 'beads' ? (
-                  <BeadsSetupSteps
-                    visible={visible}
-                    canHide={canHide}
-                    onToggleVisible={() => toggleProvider('beads')}
-                  />
+                  <>
+                    <BeadsSetupSteps
+                      visible={visible}
+                      canHide={canHide}
+                      onToggleVisible={() => toggleProvider('beads')}
+                    />
+                    <BeadsWorkflowSettings />
+                  </>
                 ) : (
                   <CodeHostSetupSteps
                     providerLabel={meta.label}
