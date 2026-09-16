@@ -69,7 +69,7 @@ export function BeadsWorkflowSettings(): React.JSX.Element {
             )}
             onChange={(e) => setActorDraft(e.target.value)}
             onBlur={commitActor}
-            className="w-48 text-xs"
+            className="w-48"
           />
         }
       />
