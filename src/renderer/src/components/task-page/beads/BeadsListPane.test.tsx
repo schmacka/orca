@@ -11,10 +11,12 @@ import { buildBeadsListRows } from './beads-tree-rows'
 // "current row virtualized out", and would pass even if the component ignored the
 // virtualizer entirely. `virtual.window` narrows the rendered slice on demand, and
 // scrollToIndex is a stable spy so the scroll-into-view effect can be asserted.
-const virtual = vi.hoisted(() => ({
-  window: null as { start: number; end: number } | null,
-  scrollToIndex: vi.fn((_index: number) => {})
-}))
+const virtual = vi.hoisted(() => {
+  // Declared on a typed local rather than with `as`: the repo forbids type assertions,
+  // and the property inherits the union so `virtual.window` stays assignable.
+  const initialWindow: { start: number; end: number } | null = null
+  return { window: initialWindow, scrollToIndex: vi.fn((_index: number) => {}) }
+})
 
 vi.mock('@tanstack/react-virtual', () => ({
   useVirtualizer: ({ count }: { count: number }) => ({
