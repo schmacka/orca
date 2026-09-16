@@ -7,17 +7,36 @@ import type { BeadsIssue } from '../../../../../shared/beads/beads-issue-types'
 import { BeadsListPane } from './BeadsListPane'
 import { buildBeadsListRows } from './beads-tree-rows'
 
+// Why: a mock that always renders every row cannot tell "current row rendered" from
+// "current row virtualized out", and would pass even if the component ignored the
+// virtualizer entirely. `virtual.window` narrows the rendered slice on demand, and
+// scrollToIndex is a stable spy so the scroll-into-view effect can be asserted.
+const virtual = vi.hoisted(() => ({
+  window: null as { start: number; end: number } | null,
+  scrollToIndex: vi.fn((_index: number) => {})
+}))
+
 vi.mock('@tanstack/react-virtual', () => ({
   useVirtualizer: ({ count }: { count: number }) => ({
     getTotalSize: () => count * 36,
-    getVirtualItems: () =>
-      Array.from({ length: count }, (_, index) => ({ index, key: index, start: index * 36 })),
+    getVirtualItems: () => {
+      const items = Array.from({ length: count }, (_, index) => ({
+        index,
+        key: index,
+        start: index * 36
+      }))
+      return virtual.window ? items.slice(virtual.window.start, virtual.window.end) : items
+    },
     measureElement: () => {},
-    scrollToIndex: vi.fn()
+    scrollToIndex: virtual.scrollToIndex
   })
 }))
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  virtual.window = null
+  virtual.scrollToIndex.mockClear()
+})
 
 function issue(id: string, parent?: string): BeadsIssue {
   return {
@@ -77,9 +96,23 @@ describe('BeadsListPane', () => {
     expect(screen.getByRole('option', { name: /Title e1/ })).toHaveAttribute('data-current', 'true')
   })
 
-  it('drops aria-activedescendant when the current row is outside the virtual window', () => {
+  it('drops aria-activedescendant when the current key matches no row', () => {
     renderPane({ currentKey: 'issue:not-rendered' })
     expect(screen.getByRole('listbox')).not.toHaveAttribute('aria-activedescendant')
+  })
+
+  it('renders only the virtual window and drops aria-activedescendant for a row outside it', () => {
+    // The row exists in the data; the virtualizer just has not rendered it. Pointing
+    // aria-activedescendant at an id with no DOM node announces nothing.
+    virtual.window = { start: 0, end: 1 }
+    renderPane({ currentKey: 'issue:c1' })
+    expect(screen.getAllByRole('option')).toHaveLength(1)
+    expect(screen.getByRole('listbox')).not.toHaveAttribute('aria-activedescendant')
+  })
+
+  it('scrolls the current row into view when the selection changes', () => {
+    renderPane({ currentKey: 'issue:x' })
+    expect(virtual.scrollToIndex).toHaveBeenCalledWith(2)
   })
 
   it('hides the expand chevron from assistive tech (the option owns the row)', () => {

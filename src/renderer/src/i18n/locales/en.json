@@ -16950,7 +16950,12 @@
       "task-page": {
         "beads": {
           "providerLabel": "Beads",
-          "runtimeUpdateRequired": "Update the Orca runtime on this host to use Beads."
+          "runtimeUpdateRequired": "Update the Orca runtime on this host to use Beads.",
+          "collapseRow": "Collapse {{id}}",
+          "expandRow": "Expand {{id}}",
+          "blockedCount": "Blocked by {{count}}",
+          "listLabel": "Beads issues",
+          "loadMore": "Load more"
         }
       }
     },
