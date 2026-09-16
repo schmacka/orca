@@ -874,6 +874,10 @@
       "sidebarWorktreeActivation": {
         "wakeEphemeralVmFailed": "Failed to wake ephemeral VM workspace"
       },
+      "beadsWorktreeAutoClaim": {
+        "claimed": "Claimed {{beadsId}}",
+        "claimFailed": "Could not claim {{beadsId}}: {{message}}"
+      },
       "ephemeralVmWorkspaceTarget": {
         "projectRootRegistrationFailed": "Failed to register the recipe-created project root on the runtime.",
         "provisionedRootRequiresSsh": "Provisioned-root recipes currently require a direct SSH connection."

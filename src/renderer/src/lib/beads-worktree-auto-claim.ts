@@ -1,4 +1,5 @@
 import { toast } from 'sonner'
+import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import type { BeadsRepoRef } from '@/runtime/runtime-beads-client'
 import type { Worktree } from '../../../shared/worktree/types'
@@ -38,19 +39,32 @@ export async function autoClaimBeadsWorktree(worktree: BeadsAutoClaimWorktree): 
     executionHostId: repo.executionHostId
   }
   const beadsId = linkedWorkItem.beadsIdentifier
+  const warnClaimFailed = (message: string): void => {
+    toast.warning(
+      translate(
+        'auto.lib.beadsWorktreeAutoClaim.claimFailed',
+        'Could not claim {{beadsId}}: {{message}}',
+        {
+          beadsId,
+          message
+        }
+      )
+    )
+  }
   try {
     const result = await state.claimBeadsIssue(repoRef, beadsId)
     if (result.ok) {
       // Why: this is the milestone's first automatic write to the tracker;
       // it must be visible at the moment it happens, not just in the log.
-      toast.success(`Claimed ${beadsId}`)
+      toast.success(
+        translate('auto.lib.beadsWorktreeAutoClaim.claimed', 'Claimed {{beadsId}}', { beadsId })
+      )
     } else {
-      toast.warning(`Could not claim ${beadsId}: ${result.error.message}`)
+      warnClaimFailed(result.error.message)
     }
   } catch (error) {
     // Why: the worktree already exists and stays regardless — a failed claim
     // never undoes a successful creation, it only gets a visible warning.
-    const message = error instanceof Error ? error.message : String(error)
-    toast.warning(`Could not claim ${beadsId}: ${message}`)
+    warnClaimFailed(error instanceof Error ? error.message : String(error))
   }
 }
