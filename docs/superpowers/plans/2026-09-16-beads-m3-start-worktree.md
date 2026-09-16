@@ -16,7 +16,7 @@
 
 ## Settled rulings
 
-1. **Link shape: synthetic URL.** `WorkspaceLinkedItem` gets `beadsIdentifier?: string`, `number: 0` (as Jira does), and `url: 'bd://<repoId>/<issueId>'`. `normalizeWorkspaceLinkedItem` rejects an empty `url` and backs both the persistence path *and* the zod params for `worktree.create`/`worktree.set`, so an optional `url` would mean changing that guard plus roughly twenty files across providers this milestone does not otherwise touch. **`beadsIdentifier` is the identity everywhere** — equality, provider resolution, claim, close. The URL is a persistence placeholder and must never reach an agent prompt.
+1. **Link shape: synthetic URL.** `WorkspaceLinkedItem` gets `beadsIdentifier?: string`, `number: 0` (as Jira does), and `url: 'bd://<issueId>'` — **no repo segment**. The repo is already carried in the item's own `repoId` field, and `areWorkspaceLinkedItemsEqual` compares `repoId` and `beadsIdentifier` separately from `url`, so a repo segment would duplicate queryable data inside an opaque string. It also makes the CLI workable: neither `worktree create --repo <selector>` nor `worktree set --worktree <selector>` reliably has a repo id client-side, and resolving one would cost a round trip for a value nothing reads. `normalizeWorkspaceLinkedItem` rejects an empty `url` and backs both the persistence path *and* the zod params for `worktree.create`/`worktree.set`, so an optional `url` would mean changing that guard plus roughly twenty files across providers this milestone does not otherwise touch. **`beadsIdentifier` is the identity everywhere** — equality, provider resolution, claim, close. The URL is a persistence placeholder and must never reach an agent prompt.
 2. **Prompt delivery: draft, not auto-submit.** The quick path sets the draft prompt whenever a linked-context block exists, which is what Linear does. A bead behaves the same: the launch text lands in the composer draft for the user to send.
 3. **The composer gets a real `beads` source kind.** `buildWorkspaceSourceSelection` maps every unrecognised provider to `github-issue`; without a new kind a bead renders with a GitHub icon. M3 introduces beads to the composer, so it owns the kind.
 4. **Removal scope: the three dialog paths.** Normal delete, force-delete and lineage-delete-all get the disposition, and an open bead forces the dialog even when "don't ask again" is set — the same override `hasLineageChildren` already uses. Batch cleanup, CLI `worktree rm` and archive are **out of scope and get a follow-up bead**, recorded in the last task rather than half-covered.
@@ -136,7 +136,7 @@ const BEAD_INPUT = {
   type: 'issue',
   number: 0,
   title: 'cwf.3 Run the playtest',
-  url: 'bd://repo-1/cwf.3',
+  url: 'bd://cwf.3',
   beadsIdentifier: 'cwf.3',
   repoId: 'repo-1'
 }
@@ -163,7 +163,7 @@ Add to `workspace-name.test.ts`:
         type: 'issue',
         number: 0,
         title: 'Run the playtest',
-        url: 'bd://repo-1/cwf.3',
+        url: 'bd://cwf.3',
         beadsIdentifier: 'cwf.3'
       })
     ).toContain('cwf.3')
@@ -198,9 +198,9 @@ Second on purpose: it exercises the Task 1 normalization and the RPC round-trip 
 
 **Per ruling 5:** `title: id`, no details fetch. Validate the id with the shared checker in `src/shared/beads/beads-issue-id.ts` — do not write a regex.
 
-- [ ] **Step 1: Write the failing test** — a valid id produces `{ linkedWorkItem: { provider: 'beads', type: 'issue', number: 0, title: <id>, url: 'bd://<repoId>/<id>', beadsIdentifier: <id> } }`; `null` with `allowNull` clears; an invalid id is rejected with a message naming `--beads-issue`.
+- [ ] **Step 1: Write the failing test** — a valid id produces `{ linkedWorkItem: { provider: 'beads', type: 'issue', number: 0, title: <id>, url: 'bd://<id>', beadsIdentifier: <id> } }`; `null` with `allowNull` clears; an invalid id is rejected with a message naming `--beads-issue`.
 
-  **The URL needs a repo id.** Check what the create handler has available at that point (`getCreateRepoSelector` returns a *selector*, not an id). If no repo id is reachable, **stop and report** — the options are resolving the repo first or accepting `bd://<id>` without the repo segment, and that is the controller's call, not a guess.
+  **The URL carries no repo segment** (settled ruling 1), so the flag needs no repo id at all: build `bd://<id>` directly. The item's `repoId` field is populated server-side from the resolved repo; leave it unset in the CLI-built item.
 
 - [ ] **Step 2: Predict the failure** — module not found.
 - [ ] **Step 3: Implement the parser; wire both handlers and both usage strings.**
@@ -344,7 +344,7 @@ git commit -m "feat(beads): claim, close and unclaim a bead from the renderer"
 |---|---|---|
 | `getLinkedWorkItemPromptContext` (:153-177) | full composer | bare URL |
 | `getLaunchableWorkItemDraftContent` (:179-200) | direct launch | bare URL |
-| **`resolveQuickCreateLinkedWorkItemPrompt` (:202-239)** | **quick composer — the Beads tab** | **`draftPrompt` is literally `bd://repo-1/cwf.3`** |
+| **`resolveQuickCreateLinkedWorkItemPrompt` (:202-239)** | **quick composer — the Beads tab** | **`draftPrompt` is literally `bd://cwf.3`** |
 
 Changing only the first two leaves the dead URL in the agent's draft. **All three get the beads branch.**
 
@@ -420,7 +420,7 @@ git commit -m "feat(beads): give the agent a readable beads launch prompt"
       type: 'issue',
       number: 0,
       title: 'cwf.3 Run the playtest',
-      url: 'bd://repo-1/cwf.3',
+      url: 'bd://cwf.3',
       beadsIdentifier: 'cwf.3',
       repoId: 'repo-1'
     })
