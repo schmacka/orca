@@ -52,6 +52,31 @@ describe('BeadsSetupCard', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
+  it('shows a status spinner while loading', () => {
+    render(
+      <BeadsSetupCard
+        status={load(null, null, true)}
+        repoName="app"
+        onRecheck={vi.fn()}
+        onHide={vi.fn()}
+      />
+    )
+    expect(screen.getByRole('status')).toBeInTheDocument()
+  })
+
+  it('interpolates the detected version into the outdated copy', () => {
+    render(
+      <BeadsSetupCard
+        status={load({ ...READY, versionSupported: false, bdVersion: '1.1.0' })}
+        repoName="app"
+        onRecheck={vi.fn()}
+        onHide={vi.fn()}
+      />
+    )
+    expect(screen.getByText('Upgrade bd')).toBeInTheDocument()
+    expect(screen.getByText('Found bd 1.1.0; Orca needs bd 1.2.0 or newer.')).toBeInTheDocument()
+  })
+
   it('guides installation and re-checks', () => {
     const onRecheck = vi.fn()
     render(
