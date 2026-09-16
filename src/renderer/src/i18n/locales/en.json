@@ -17008,7 +17008,12 @@
           "setupErrorTitle": "Beads could not be read",
           "setupRetry": "Retry",
           "resizeList": "Resize issue list",
-          "selectIssue": "Select an issue to see its details"
+          "selectIssue": "Select an issue to see its details",
+          "noIssues": "No issues match",
+          "retry": "Retry",
+          "pollStale": "Beads is unreachable — showing the last data loaded.",
+          "indexTruncated": "More than 2000 issues — epic progress and filter options cover the first 2000.",
+          "selectRepo": "Select a repository to see its beads"
         }
       }
     },

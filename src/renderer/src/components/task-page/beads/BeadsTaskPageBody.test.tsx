@@ -2,6 +2,7 @@
 import '@testing-library/jest-dom/vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import type { Repo } from '../../../../../shared/repo-types'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
 const mocks = vi.hoisted(() => ({
@@ -39,14 +40,17 @@ vi.mock('@/components/sidebar/CommentMarkdown', () => ({
 import { BEADS_TREE_INDEX_REQUEST } from './beads-list-request'
 import { BeadsTaskPageBody } from './BeadsTaskPageBody'
 
-// oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the body only reads id, path, displayName, connectionId and executionHostId.
-const REPO = {
+// A real Repo: only id, path, displayName, badgeColor and addedAt are required, so the
+// fixture needs no cast — and spreading it for a second repo stays type-safe.
+const REPO: Repo = {
   id: 'r1',
   path: '/work/app',
   displayName: 'app',
+  badgeColor: '#4f46e5',
+  addedAt: 0,
   connectionId: null,
   executionHostId: null
-} as never
+}
 
 // What the hook and the store actions actually receive: the four routing fields, memoized.
 const REPO_REF = { id: 'r1', path: '/work/app', connectionId: null, executionHostId: null }
@@ -79,13 +83,17 @@ function issue(id: string, parent?: string) {
   }
 }
 
-function installState(status: unknown, lists: Record<string, unknown> = {}) {
+function installState(
+  status: unknown,
+  lists: Record<string, unknown> = {},
+  changeToken: string | null = 'h1'
+) {
   mocks.state = {
     beadsRepos: {
       r1: {
         status,
         schema: { data: null, error: null, loading: false, token: null },
-        changeToken: 'h1',
+        changeToken,
         pollError: null,
         lists,
         details: {}
@@ -99,11 +107,10 @@ function installState(status: unknown, lists: Record<string, unknown> = {}) {
   }
 }
 
-function renderBody(repos: unknown[] = [REPO]) {
+function renderBody(repos: readonly Repo[] = [REPO]) {
   render(
     <TooltipProvider>
-      {/* oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: fixture repos. */}
-      <BeadsTaskPageBody repos={repos as never} primaryRepoId="r1" onHide={vi.fn()} />
+      <BeadsTaskPageBody repos={repos} primaryRepoId="r1" onHide={vi.fn()} />
     </TooltipProvider>
   )
 }
@@ -139,8 +146,9 @@ describe('BeadsTaskPageBody', () => {
   })
 
   it('waits for the first change token before loading anything', () => {
-    installState({ data: READY, error: null, loading: false, token: null })
-    mocks.state.beadsRepos.r1.changeToken = null
+    // Pass the null token in, rather than reaching into `mocks.state` — that field is
+    // typed `unknown`, so mutating through it does not typecheck.
+    installState({ data: READY, error: null, loading: false, token: null }, {}, null)
     renderBody()
     expect(mocks.installPoller).toHaveBeenCalled()
     expect(mocks.loadBeadsList).not.toHaveBeenCalled()
