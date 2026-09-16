@@ -10,7 +10,11 @@ afterEach(() => {
 })
 
 function pressEscape(): void {
-  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+  // Why: the handler's target-is-HTMLElement guard means dispatching on `window`
+  // itself (event.target === window) would bail before reaching the selector check.
+  const target = document.createElement('div')
+  document.body.appendChild(target)
+  target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
 }
 
 describe('isEscapeOwnedByOpenOverlay', () => {

@@ -12,9 +12,13 @@ const client = vi.hoisted(() => ({
 vi.mock('@/runtime/runtime-beads-client', () => client)
 
 import type { AppState } from '../types'
-import { BEADS_TREE_INDEX_REQUEST } from '@/components/task-page/beads/beads-list-request'
 import { createBeadsSlice } from './beads'
-import { beadsListKey, BEADS_LIST_CACHE_MAX, selectBeadsRepoState } from './beads-load-state'
+import {
+  beadsListKey,
+  BEADS_LIST_CACHE_MAX,
+  BEADS_TREE_INDEX_REQUEST,
+  selectBeadsRepoState
+} from './beads-load-state'
 
 const REPO = { id: 'r1', path: '/work/app', connectionId: null, executionHostId: null }
 const REQUEST = { view: 'ready' as const, filter: {}, limit: 200 }

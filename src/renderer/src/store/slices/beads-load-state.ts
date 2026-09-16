@@ -1,6 +1,18 @@
-import type { BeadsListRequest, BeadsResult } from '../../../../shared/beads/beads-contract'
+import {
+  BEADS_LIST_MAX_LIMIT,
+  type BeadsListRequest,
+  type BeadsResult
+} from '../../../../shared/beads/beads-contract'
 import type { AppState } from '../types'
 import type { BeadsLoad, BeadsRepoState } from './beads-slice-contract'
+
+// Why: the store pins this key against list-cache eviction (see pruneBeadsEntries below),
+// so it lives here rather than in the components layer that also builds it into queries.
+export const BEADS_TREE_INDEX_REQUEST: BeadsListRequest = {
+  view: 'list',
+  filter: { includeClosed: true },
+  limit: BEADS_LIST_MAX_LIMIT
+}
 
 export function emptyBeadsLoad<T>(): BeadsLoad<T> {
   return { data: null, error: null, loading: false, token: null }

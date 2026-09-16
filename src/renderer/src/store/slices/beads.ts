@@ -1,9 +1,5 @@
 import type { BeadsListRequest } from '../../../../shared/beads/beads-contract'
 import type { StateCreator } from 'zustand'
-// From components, not the other way round: the tree index is one well-known list
-// request shape, and pinning it here is what keeps it from being pruned by unrelated
-// list-cache writes (see beads-load-state.ts pruneBeadsEntries).
-import { BEADS_TREE_INDEX_REQUEST } from '@/components/task-page/beads/beads-list-request'
 import {
   beadsGetChangeToken,
   beadsGetIssueDetails,
@@ -17,6 +13,7 @@ import {
   beadsListKey,
   BEADS_DETAILS_CACHE_MAX,
   BEADS_LIST_CACHE_MAX,
+  BEADS_TREE_INDEX_REQUEST,
   isFreshBeadsLoad,
   pruneBeadsEntries,
   selectBeadsRepoState,

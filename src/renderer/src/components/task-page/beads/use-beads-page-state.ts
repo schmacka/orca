@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   BEADS_LIST_PAGE_SIZE,
   type BeadsFailure,
+  type BeadsIssuePage,
   type BeadsListView
 } from '../../../../../shared/beads/beads-contract'
 import type {
@@ -15,12 +16,15 @@ import {
 import { installWindowVisibilityTimeoutPoller } from '@/lib/window-visibility-timeout-poller'
 import type { BeadsRepoRef } from '@/runtime/runtime-beads-client'
 import { useAppStore } from '@/store'
-import { beadsListKey, selectBeadsRepoState } from '@/store/slices/beads-load-state'
+import {
+  BEADS_TREE_INDEX_REQUEST,
+  beadsListKey,
+  selectBeadsRepoState
+} from '@/store/slices/beads-load-state'
 import type { BeadsLoad } from '@/store/slices/beads-slice-contract'
 import { beadsSetupState } from './BeadsSetupCard'
 import { readBeadsListMode, writeBeadsListMode } from './beads-list-mode-storage'
 import {
-  BEADS_TREE_INDEX_REQUEST,
   EMPTY_BEADS_FILTERS,
   beadsViewForQuery,
   buildBeadsListRequest,
@@ -131,7 +135,7 @@ export function useBeadsPageState(repo: BeadsRepoRef): BeadsPageState {
     query.limit > BEADS_LIST_PAGE_SIZE
       ? repoState.lists[beadsListKey({ ...request, limit: query.limit - BEADS_LIST_PAGE_SIZE })]
       : undefined
-  const listHasData = (entry: typeof list): boolean =>
+  const listHasData = (entry: BeadsLoad<BeadsIssuePage> | undefined): boolean =>
     entry?.data !== null && entry?.data !== undefined
   const displayList = listHasData(list)
     ? list

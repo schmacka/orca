@@ -42,7 +42,7 @@ vi.mock('@/components/sidebar/CommentMarkdown', () => ({
   default: ({ content }: { content: string }) => <div>{content}</div>
 }))
 
-import { BEADS_TREE_INDEX_REQUEST } from './beads-list-request'
+import { BEADS_TREE_INDEX_REQUEST } from '@/store/slices/beads-load-state'
 import { BeadsTaskPageBody } from './BeadsTaskPageBody'
 
 // A real Repo: only id, path, displayName, badgeColor and addedAt are required, so the

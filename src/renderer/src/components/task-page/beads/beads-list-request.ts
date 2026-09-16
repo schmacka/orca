@@ -41,12 +41,6 @@ export type BeadsListQuery = {
   limit: number
 }
 
-export const BEADS_TREE_INDEX_REQUEST: BeadsListRequest = {
-  view: 'list',
-  filter: { includeClosed: true },
-  limit: BEADS_LIST_MAX_LIMIT
-}
-
 const ALL_FILTERS: readonly BeadsFilterKey[] = ['type', 'labels', 'parent', 'priority', 'assignee']
 
 // Why: M1's argv builders reject these combinations with invalid-input; the UI
