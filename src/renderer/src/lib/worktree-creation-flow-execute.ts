@@ -26,6 +26,7 @@ import {
 import { completeWorktreeCreation } from '@/lib/worktree-creation-completion'
 import { markStructuredWorktreeLaunchUnconfirmed } from '@/lib/worktree-creation-structured-recovery'
 import { ensureWebRuntimeWorktreeTerminalAfterWake } from '@/lib/web-runtime-worktree-terminal-after-wake'
+import { autoClaimBeadsWorktree } from '@/lib/beads-worktree-auto-claim'
 
 // Why: activePendingCreationId can outlive the terminal route when the user
 // switches app views; only the terminal route renders the creation panel.
@@ -135,6 +136,15 @@ export async function executeWorktreeCreation(
     }
     return
   }
+
+  // Why: fire-and-forget — this caller's own .catch (startWorktreeCreation)
+  // awaits executeWorktreeCreation, so an unguarded claim throw here would
+  // report this successful creation as a failed one. The module resolves on
+  // every path; this .catch only guards against something escaping it.
+  void autoClaimBeadsWorktree(worktree).catch((error: unknown) => {
+    console.error('worktree create: beads auto-claim failed', worktree.id, error)
+  })
+
   await attachEphemeralVmRuntimeToWorkspace(preparedRequest, worktree.id)
 
   const backendSpawned = result.startupTerminal?.spawned === true
