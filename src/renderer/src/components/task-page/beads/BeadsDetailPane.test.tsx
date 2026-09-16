@@ -5,10 +5,12 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { FALLBACK_BEADS_SCHEMA } from '../../../../../shared/beads/beads-schema'
 import type { BeadsIssueDetails } from '../../../../../shared/beads/beads-issue-types'
 
-const mocks = vi.hoisted(() => ({
-  state: {} as Record<string, unknown>,
-  loadBeadsDetails: vi.fn()
-}))
+const mocks = vi.hoisted(() => {
+  // Typed local, not `as`: the repo forbids type assertions. Unlike a `null`
+  // initializer (which narrows to `null`), `{}` keeps the declared record type.
+  const state: Record<string, unknown> = {}
+  return { state, loadBeadsDetails: vi.fn() }
+})
 
 vi.mock('@/store', () => ({
   useAppStore: (selector: (state: Record<string, unknown>) => unknown) => selector(mocks.state)
