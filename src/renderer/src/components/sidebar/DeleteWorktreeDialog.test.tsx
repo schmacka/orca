@@ -3,7 +3,7 @@
 import '@testing-library/jest-dom/vitest'
 import { screen } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Repo } from '../../../../shared/repo-types'
 import type { WorktreeLineage } from '../../../../shared/worktree/lineage-types'
@@ -11,7 +11,24 @@ import type { WorktreeRemovalTarget } from '../../../../shared/worktree/removal'
 import type { Worktree } from '../../../../shared/worktree/types'
 import type { BeadsRepoState } from '@/store/slices/beads-slice-contract'
 
+// Why: typed at the source so `.find(...)` below never needs a readback assertion.
+type MockButtonProps = {
+  variant?: string
+  disabled?: boolean
+  onClick?: () => void
+  children: ReactNode
+}
+
+function requireButton(button: MockButtonProps | undefined): MockButtonProps {
+  if (!button) {
+    throw new Error('Expected a rendered button matching the query, found none.')
+  }
+  return button
+}
+
 const mocks = vi.hoisted(() => {
+  // Declared up here so the empty initialiser can be typed rather than asserted.
+  const beadsRepos: Record<string, BeadsRepoState> = {}
   const state = {
     activeModal: 'delete-worktree',
     modalData: {} as Record<string, unknown>,
@@ -41,12 +58,13 @@ const mocks = vi.hoisted(() => {
         lockReason?: string | null
       }
     >,
-    beadsRepos: {} as Record<string, BeadsRepoState>,
+    beadsRepos,
     loadBeadsDetails: vi.fn(),
     closeBeadsIssue: vi.fn(),
     unclaimBeadsIssue: vi.fn()
   }
-  return { state, buttonProps: [] as Record<string, unknown>[] }
+  const buttonProps: MockButtonProps[] = []
+  return { state, buttonProps }
 })
 
 vi.mock('@/store', () => ({
@@ -84,10 +102,7 @@ vi.mock('@/components/ui/dialog', () => ({
 }))
 
 vi.mock('@/components/ui/button', () => ({
-  Button: ({
-    children,
-    ...props
-  }: ButtonHTMLAttributes<HTMLButtonElement> & { children: ReactNode }) => {
+  Button: ({ children, ...props }: MockButtonProps) => {
     mocks.buttonProps.push({ ...props, children })
     return <button {...props}>{children}</button>
   }
@@ -179,8 +194,8 @@ function makeLineage(child: Worktree, parent: Worktree): WorktreeLineage {
   }
 }
 
-function buttonText(props: Record<string, unknown>): string {
-  return renderToStaticMarkup(<>{props.children as ReactNode}</>)
+function buttonText(props: MockButtonProps): string {
+  return renderToStaticMarkup(<>{props.children}</>)
 }
 
 function visibleMarkupText(markup: string): string {
@@ -258,10 +273,10 @@ describe('DeleteWorktreeDialog lineage copy', () => {
 
     const { default: DeleteWorktreeDialog } = await import('./DeleteWorktreeDialog')
     renderToStaticMarkup(<DeleteWorktreeDialog />)
-    const deleteButton = mocks.buttonProps.find((props) => props.variant === 'destructive') as
-      | { onClick?: () => void }
-      | undefined
-    deleteButton?.onClick?.()
+    const deleteButton = requireButton(
+      mocks.buttonProps.find((props) => props.variant === 'destructive')
+    )
+    deleteButton.onClick?.()
 
     expect(runWorktreeDeletesInParallel).toHaveBeenCalledWith([workspace], {
       force: false,
@@ -302,8 +317,8 @@ describe('DeleteWorktreeDialog lineage copy', () => {
     expect(destructiveButton ? buttonText(destructiveButton) : '').toContain('Delete 2 Workspaces')
     expect(parentOnlyButton).toBeUndefined()
 
-    const deleteAllButton = destructiveButton as { onClick?: () => void } | undefined
-    deleteAllButton?.onClick?.()
+    const deleteAllButton = requireButton(destructiveButton)
+    deleteAllButton.onClick?.()
 
     expect(runWorktreeDeletesInParallel).toHaveBeenCalledWith([child, parent], {
       force: true,
@@ -428,11 +443,10 @@ describe('DeleteWorktreeDialog lineage copy', () => {
     const { default: DeleteWorktreeDialog } = await import('./DeleteWorktreeDialog')
     renderToStaticMarkup(<DeleteWorktreeDialog />)
 
-    const deleteButton = mocks.buttonProps.find((props) => props.variant === 'destructive') as
-      | { onClick?: (event: never) => void }
-      | undefined
-    expect(deleteButton).toBeDefined()
-    deleteButton?.onClick?.(undefined as never)
+    const deleteButton = requireButton(
+      mocks.buttonProps.find((props) => props.variant === 'destructive')
+    )
+    deleteButton.onClick?.()
 
     expect(runWorktreeDeletesInParallel).toHaveBeenCalledWith([workspace], {
       force: true,
@@ -459,10 +473,10 @@ describe('DeleteWorktreeDialog lineage copy', () => {
     renderToStaticMarkup(<DeleteWorktreeDialog />)
     mocks.state.allWorktrees.mockReturnValue([replacement])
 
-    const deleteButton = mocks.buttonProps.find((props) => props.variant === 'destructive') as
-      | { onClick?: (event: never) => void }
-      | undefined
-    deleteButton?.onClick?.(undefined as never)
+    const deleteButton = requireButton(
+      mocks.buttonProps.find((props) => props.variant === 'destructive')
+    )
+    deleteButton.onClick?.()
 
     expect(showWorkspaceListChangedToast).toHaveBeenCalledOnce()
     expect(mocks.state.closeModal).toHaveBeenCalledOnce()
@@ -488,10 +502,10 @@ describe('DeleteWorktreeDialog lineage copy', () => {
     renderToStaticMarkup(<DeleteWorktreeDialog />)
     mocks.state.allWorktrees.mockReturnValue([parent, replacement])
 
-    const deleteButton = mocks.buttonProps.find((props) => props.variant === 'destructive') as
-      | { onClick?: () => void }
-      | undefined
-    deleteButton?.onClick?.()
+    const deleteButton = requireButton(
+      mocks.buttonProps.find((props) => props.variant === 'destructive')
+    )
+    deleteButton.onClick?.()
 
     expect(showWorkspaceListChangedToast).toHaveBeenCalledOnce()
     expect(mocks.state.closeModal).toHaveBeenCalledOnce()
@@ -517,10 +531,10 @@ describe('DeleteWorktreeDialog lineage copy', () => {
       const { default: DeleteWorktreeDialog } = await import('./DeleteWorktreeDialog')
       renderToStaticMarkup(<DeleteWorktreeDialog />)
 
-      const deleteButton = mocks.buttonProps.find((props) => props.variant === 'destructive') as
-        | { disabled?: boolean }
-        | undefined
-      expect(deleteButton?.disabled).toBe(true)
+      const deleteButton = requireButton(
+        mocks.buttonProps.find((props) => props.variant === 'destructive')
+      )
+      expect(deleteButton.disabled).toBe(true)
     })
 
     it('runs the beads disposition after a successful normal delete', async () => {
@@ -546,10 +560,10 @@ describe('DeleteWorktreeDialog lineage copy', () => {
 
       const { default: DeleteWorktreeDialog } = await import('./DeleteWorktreeDialog')
       renderToStaticMarkup(<DeleteWorktreeDialog />)
-      const deleteButton = mocks.buttonProps.find((props) => props.variant === 'destructive') as
-        | { onClick?: () => void }
-        | undefined
-      deleteButton?.onClick?.()
+      const deleteButton = requireButton(
+        mocks.buttonProps.find((props) => props.variant === 'destructive')
+      )
+      deleteButton.onClick?.()
 
       await vi.waitFor(() => expect(run).toHaveBeenCalledTimes(1))
     })
@@ -575,10 +589,10 @@ describe('DeleteWorktreeDialog lineage copy', () => {
 
       const { default: DeleteWorktreeDialog } = await import('./DeleteWorktreeDialog')
       renderToStaticMarkup(<DeleteWorktreeDialog />)
-      const deleteButton = mocks.buttonProps.find((props) => props.variant === 'destructive') as
-        | { onClick?: () => void }
-        | undefined
-      deleteButton?.onClick?.()
+      const deleteButton = requireButton(
+        mocks.buttonProps.find((props) => props.variant === 'destructive')
+      )
+      deleteButton.onClick?.()
 
       await vi.waitFor(() => expect(runWorktreeDeletesInParallel).toHaveBeenCalled())
       expect(run).not.toHaveBeenCalled()
@@ -613,10 +627,10 @@ describe('DeleteWorktreeDialog lineage copy', () => {
 
       const { default: DeleteWorktreeDialog } = await import('./DeleteWorktreeDialog')
       renderToStaticMarkup(<DeleteWorktreeDialog />)
-      const forceDeleteButton = mocks.buttonProps.find(
-        (props) => props.variant === 'destructive'
-      ) as { onClick?: () => void } | undefined
-      forceDeleteButton?.onClick?.()
+      const forceDeleteButton = requireButton(
+        mocks.buttonProps.find((props) => props.variant === 'destructive')
+      )
+      forceDeleteButton.onClick?.()
 
       await vi.waitFor(() => expect(run).toHaveBeenCalledTimes(1))
     })
@@ -650,10 +664,10 @@ describe('DeleteWorktreeDialog lineage copy', () => {
 
       const { default: DeleteWorktreeDialog } = await import('./DeleteWorktreeDialog')
       renderToStaticMarkup(<DeleteWorktreeDialog />)
-      const deleteAllButton = mocks.buttonProps.find((props) => props.variant === 'destructive') as
-        | { onClick?: () => void }
-        | undefined
-      deleteAllButton?.onClick?.()
+      const deleteAllButton = requireButton(
+        mocks.buttonProps.find((props) => props.variant === 'destructive')
+      )
+      deleteAllButton.onClick?.()
 
       await vi.waitFor(() => expect(run).toHaveBeenCalledTimes(1))
     })
