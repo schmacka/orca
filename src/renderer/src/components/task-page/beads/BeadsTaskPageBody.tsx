@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, Loader2 } from 'lucide-react'
 import type { Repo } from '../../../../../shared/repo-types'
 import type { BeadsRepoRef } from '@/runtime/runtime-beads-client'
 import { Button } from '@/components/ui/button'
@@ -24,6 +24,24 @@ type BeadsTaskPageBodyProps = {
   onHide: () => void
 }
 
+function BeadsInlineFailure({
+  message,
+  onRetry
+}: {
+  message: string
+  onRetry: () => void
+}): React.JSX.Element {
+  return (
+    <div className="flex items-start gap-2 bg-destructive/10 px-3 py-2 text-[13px] text-destructive">
+      <AlertCircle aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+      <span className="min-w-0 flex-1">{message}</span>
+      <Button variant="ghost" size="xs" onClick={onRetry}>
+        {translate('auto.components.task-page.beads.retry', 'Retry')}
+      </Button>
+    </div>
+  )
+}
+
 function BeadsRepoView({ repo, onHide }: { repo: Repo; onHide: () => void }): React.JSX.Element {
   // Why: the store replaces Repo objects on every repo-list push. Effects keyed on that
   // identity would reinstall the poller and refetch mid-read; these four fields do not change.
@@ -46,6 +64,44 @@ function BeadsRepoView({ repo, onHide }: { repo: Repo; onHide: () => void }): Re
         onRecheck={page.recheck}
         onHide={onHide}
       />
+    )
+  }
+  const filtersBar = (
+    <BeadsFiltersBar
+      preset={page.query.preset}
+      onPresetChange={page.setPreset}
+      text={page.textInput}
+      onTextChange={page.setText}
+      filters={page.query.filters}
+      onFiltersChange={page.setFilters}
+      view={page.view}
+      schema={page.schema}
+      labelOptions={page.labelOptions}
+      epicOptions={page.epicOptions}
+      mode={page.mode}
+      onModeChange={page.setMode}
+      refreshing={page.listLoading}
+      onRefresh={page.refresh}
+    />
+  )
+  // Why: before the first change token answers there is nothing to show yet — a spinner
+  // (or, on a failed first poll, a retry prompt) instead of an empty list and filters.
+  if (!page.tokenReady) {
+    return (
+      <>
+        {filtersBar}
+        {page.pollError ? (
+          <BeadsInlineFailure message={page.pollError.message} onRetry={page.refresh} />
+        ) : (
+          <div
+            role="status"
+            aria-busy
+            className="flex min-h-0 flex-1 items-center justify-center py-14"
+          >
+            <Loader2 aria-hidden className="size-5 animate-spin text-muted-foreground" />
+          </div>
+        )}
+      </>
     )
   }
   const list =
@@ -74,30 +130,9 @@ function BeadsRepoView({ repo, onHide }: { repo: Repo; onHide: () => void }): Re
     )
   return (
     <>
-      <BeadsFiltersBar
-        preset={page.query.preset}
-        onPresetChange={page.setPreset}
-        text={page.textInput}
-        onTextChange={page.setText}
-        filters={page.query.filters}
-        onFiltersChange={page.setFilters}
-        view={page.view}
-        schema={page.schema}
-        labelOptions={page.labelOptions}
-        epicOptions={page.epicOptions}
-        mode={page.mode}
-        onModeChange={page.setMode}
-        refreshing={page.listLoading}
-        onRefresh={page.refresh}
-      />
+      {filtersBar}
       {page.listError ? (
-        <div className="flex items-start gap-2 bg-destructive/10 px-3 py-2 text-[13px] text-destructive">
-          <AlertCircle aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-          <span className="min-w-0 flex-1">{page.listError.message}</span>
-          <Button variant="ghost" size="xs" onClick={page.refresh}>
-            {translate('auto.components.task-page.beads.retry', 'Retry')}
-          </Button>
-        </div>
+        <BeadsInlineFailure message={page.listError.message} onRetry={page.refresh} />
       ) : null}
       {page.pollError ? (
         <p className="px-3 py-1 text-[12px] text-muted-foreground">

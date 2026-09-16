@@ -12,6 +12,7 @@ const client = vi.hoisted(() => ({
 vi.mock('@/runtime/runtime-beads-client', () => client)
 
 import type { AppState } from '../types'
+import { BEADS_TREE_INDEX_REQUEST } from '@/components/task-page/beads/beads-list-request'
 import { createBeadsSlice } from './beads'
 import { beadsListKey, BEADS_LIST_CACHE_MAX, selectBeadsRepoState } from './beads-load-state'
 
@@ -125,5 +126,18 @@ describe('beads slice', () => {
     // The newest key survives, the first ones were dropped.
     expect(lists[beadsListKey({ ...REQUEST, text: 'q0' })]).toBeUndefined()
     expect(lists[beadsListKey({ ...REQUEST, text: `q${BEADS_LIST_CACHE_MAX + 2}` })]).toBeDefined()
+  })
+
+  it('never evicts the tree index while later list keys fill the cache', async () => {
+    const store = createTestStore()
+    client.beadsGetChangeToken.mockResolvedValue({ ok: true, value: 'h1' })
+    client.beadsListIssues.mockResolvedValue(page(['a']))
+    await store.getState().pollBeadsChangeToken(REPO)
+    await store.getState().loadBeadsList(REPO, BEADS_TREE_INDEX_REQUEST)
+    for (let index = 0; index < BEADS_LIST_CACHE_MAX + 3; index += 1) {
+      await store.getState().loadBeadsList(REPO, { ...REQUEST, text: `q${index}` })
+    }
+    const lists = selectBeadsRepoState(store.getState(), 'r1').lists
+    expect(lists[beadsListKey(BEADS_TREE_INDEX_REQUEST)]).toBeDefined()
   })
 })

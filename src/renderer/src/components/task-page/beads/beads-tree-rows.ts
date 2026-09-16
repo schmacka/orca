@@ -60,10 +60,18 @@ export function buildBeadsListRows(input: BeadsListRowsInput): BeadsListRow[] {
     return flatRows(issues)
   }
   const ids = new Set(issues.map((issue) => issue.id))
+  // Why: push into the existing array instead of spreading a copy per child — spreading
+  // here was O(n) per insert (O(n²) total) for a parent with n children.
   const children = new Map<string, BeadsIssue[]>()
   for (const issue of issues) {
-    if (issue.parent) {
-      children.set(issue.parent, [...(children.get(issue.parent) ?? []), issue])
+    if (!issue.parent) {
+      continue
+    }
+    const siblings = children.get(issue.parent)
+    if (siblings) {
+      siblings.push(issue)
+    } else {
+      children.set(issue.parent, [issue])
     }
   }
   const indexById = new Map((index ?? []).map((entry) => [entry.id, entry]))

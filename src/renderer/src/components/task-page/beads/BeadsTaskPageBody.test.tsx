@@ -123,7 +123,7 @@ function installState(
 }
 
 function renderBody(repos: readonly Repo[] = [REPO]) {
-  render(
+  return render(
     <TooltipProvider>
       <BeadsTaskPageBody repos={repos} primaryRepoId="r1" onHide={vi.fn()} />
     </TooltipProvider>
@@ -168,6 +168,24 @@ describe('BeadsTaskPageBody', () => {
     expect(mocks.installPoller).toHaveBeenCalled()
     expect(mocks.loadBeadsList).not.toHaveBeenCalled()
     expect(mocks.loadBeadsSchema).not.toHaveBeenCalled()
+  })
+
+  it('shows a spinner, not an empty list, before the first change token answers', () => {
+    installState({ data: READY, error: null, loading: false, token: null }, {}, null)
+    renderBody()
+    expect(screen.getByRole('status')).toBeInTheDocument()
+    expect(screen.queryByText('No issues match')).not.toBeInTheDocument()
+    expect(screen.queryByText(/showing the last data loaded/)).not.toBeInTheDocument()
+  })
+
+  it('offers a retry, not the stale-data banner, when the first poll fails', () => {
+    installState({ data: READY, error: null, loading: false, token: null }, {}, null)
+    repoState.pollError = { kind: 'host-offline', message: 'The host is offline.' }
+    renderBody()
+    expect(screen.getByText('The host is offline.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+    expect(screen.queryByText(/showing the last data loaded/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
   it('warns when the tree index is truncated', () => {
@@ -219,6 +237,97 @@ describe('BeadsTaskPageBody', () => {
     expect(mocks.loadBeadsList).toHaveBeenCalledWith(REPO_REF, BEADS_TREE_INDEX_REQUEST)
     fireEvent.click(screen.getByText('Title c1'))
     expect(mocks.loadBeadsDetails).toHaveBeenCalledWith(REPO_REF, 'c1')
+  })
+
+  it('re-requests the tree index once it is evicted from the cache', () => {
+    const readyKey = JSON.stringify({ view: 'ready', filter: {}, limit: 200 })
+    const indexKey = JSON.stringify(BEADS_TREE_INDEX_REQUEST)
+    installState(
+      { data: READY, error: null, loading: false, token: null },
+      {
+        [readyKey]: {
+          data: { issues: [issue('e1')], hasMore: false },
+          error: null,
+          loading: false,
+          token: 'h1'
+        },
+        [indexKey]: {
+          data: { issues: [issue('e1')], hasMore: false },
+          error: null,
+          loading: false,
+          token: 'h1'
+        }
+      }
+    )
+    const { rerender } = renderBody()
+    mocks.loadBeadsList.mockClear()
+
+    // Why: simulates the 12-entry cache dropping the tree index without the change
+    // token moving — nothing else in this test causes a refetch.
+    delete repoState.lists[indexKey]
+    rerender(
+      <TooltipProvider>
+        <BeadsTaskPageBody repos={[REPO]} primaryRepoId="r1" onHide={vi.fn()} />
+      </TooltipProvider>
+    )
+
+    expect(mocks.loadBeadsList).toHaveBeenCalledWith(REPO_REF, BEADS_TREE_INDEX_REQUEST)
+  })
+
+  it('keeps existing rows on screen while Load more fetches the next page', () => {
+    const readyKey = JSON.stringify({ view: 'ready', filter: {}, limit: 200 })
+    const indexKey = JSON.stringify(BEADS_TREE_INDEX_REQUEST)
+    installState(
+      { data: READY, error: null, loading: false, token: null },
+      {
+        [readyKey]: {
+          data: { issues: [issue('e1')], hasMore: true },
+          error: null,
+          loading: false,
+          token: 'h1'
+        },
+        [indexKey]: {
+          data: { issues: [issue('e1')], hasMore: false },
+          error: null,
+          loading: false,
+          token: 'h1'
+        }
+      }
+    )
+    renderBody()
+    expect(screen.getByText('Title e1')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }))
+
+    // The bigger-page cache key has no data yet (`data: null`); the previous page's
+    // row must stay on screen instead of the list collapsing to empty.
+    expect(screen.getByText('Title e1')).toBeInTheDocument()
+  })
+
+  it('keeps the stale-data banner when a later poll fails after data is already on screen', () => {
+    const readyKey = JSON.stringify({ view: 'ready', filter: {}, limit: 200 })
+    const indexKey = JSON.stringify(BEADS_TREE_INDEX_REQUEST)
+    installState(
+      { data: READY, error: null, loading: false, token: null },
+      {
+        [readyKey]: {
+          data: { issues: [issue('e1')], hasMore: false },
+          error: null,
+          loading: false,
+          token: 'h1'
+        },
+        [indexKey]: {
+          data: { issues: [issue('e1')], hasMore: false },
+          error: null,
+          loading: false,
+          token: 'h1'
+        }
+      }
+    )
+    repoState.pollError = { kind: 'host-offline', message: 'The host is offline.' }
+    renderBody()
+    expect(screen.getByText(/showing the last data loaded/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument()
   })
 
   it('offers a repository picker when several repositories are selected', () => {

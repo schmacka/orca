@@ -20,17 +20,18 @@ export const BEADS_DETAILS_CACHE_MAX = 24
 
 // Why: every debounced search string and every Load-more limit adds a key, and each
 // page can be hundreds of KB. Keys keep insertion order, so the oldest go first; the
-// key being written and anything still loading stay.
+// key being written, anything still loading, and any pinned key stay.
 export function pruneBeadsEntries<T>(
   entries: Record<string, BeadsLoad<T>>,
   keep: string,
-  max: number
+  max: number,
+  pinned: ReadonlySet<string> = new Set()
 ): Record<string, BeadsLoad<T>> {
   const keys = Object.keys(entries)
   if (keys.length <= max) {
     return entries
   }
-  const removable = keys.filter((key) => key !== keep && !entries[key]?.loading)
+  const removable = keys.filter((key) => key !== keep && !pinned.has(key) && !entries[key]?.loading)
   const dropCount = Math.min(keys.length - max, removable.length)
   if (dropCount === 0) {
     return entries

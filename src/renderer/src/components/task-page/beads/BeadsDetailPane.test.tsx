@@ -85,11 +85,20 @@ const NO_RELATIONS_DETAILS: BeadsIssueDetails = {
   comments: []
 }
 
+// Typed (not `unknown`, like `mocks.state`) so a test can evict an entry directly —
+// that field is typed `unknown`, so mutating through it does not typecheck.
+let repoState: {
+  status: unknown
+  schema: unknown
+  changeToken: string | null
+  details: Record<string, unknown>
+  lists: Record<string, unknown>
+}
+
 function installState(entry: unknown, changeToken: string | null = 'h1') {
+  repoState = { status: {}, schema: {}, changeToken, lists: {}, details: { 'cwf.3': entry } }
   mocks.state = {
-    beadsRepos: {
-      r1: { status: {}, schema: {}, changeToken, lists: {}, details: { 'cwf.3': entry } }
-    },
+    beadsRepos: { r1: repoState },
     loadBeadsDetails: mocks.loadBeadsDetails
   }
 }
@@ -180,6 +189,33 @@ describe('BeadsDetailPane', () => {
     )
     expect(screen.getByText('No relations')).toBeInTheDocument()
     expect(screen.queryByText('Blocked by')).not.toBeInTheDocument()
+  })
+
+  it('re-requests details once the cached entry is evicted', () => {
+    installState({ data: DETAILS, error: null, loading: false, token: 'h1' })
+    const { rerender } = render(
+      <BeadsDetailPane
+        repo={REPO}
+        issueId="cwf.3"
+        schema={FALLBACK_BEADS_SCHEMA}
+        onOpenIssue={vi.fn()}
+      />
+    )
+    mocks.loadBeadsDetails.mockClear()
+
+    // Why: simulates the 24-entry details cache dropping this issue's entry without
+    // issueId/changeToken changing — nothing else here would cause a refetch.
+    delete repoState.details['cwf.3']
+    rerender(
+      <BeadsDetailPane
+        repo={REPO}
+        issueId="cwf.3"
+        schema={FALLBACK_BEADS_SCHEMA}
+        onOpenIssue={vi.fn()}
+      />
+    )
+
+    expect(mocks.loadBeadsDetails).toHaveBeenCalledWith(REPO, 'cwf.3')
   })
 
   it('shows the error message', () => {

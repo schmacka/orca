@@ -23,6 +23,10 @@ export function BeadsDetailPane({
   const entry = useAppStore((state) => selectBeadsRepoState(state, repo.id).details[issueId])
   const changeToken = useAppStore((state) => selectBeadsRepoState(state, repo.id).changeToken)
   const loadBeadsDetails = useAppStore((state) => state.loadBeadsDetails)
+  // Why: the details cache can evict this issue's entry (24-entry cap) without
+  // issueId/changeToken changing; its absence must retrigger the load or this pane
+  // spins forever with no request pending.
+  const entryMissing = entry === undefined
 
   useEffect(() => {
     // Why: changeToken is a dependency so a new bd commit reloads the open issue, and
@@ -31,7 +35,7 @@ export function BeadsDetailPane({
       return
     }
     void loadBeadsDetails(repo, issueId)
-  }, [loadBeadsDetails, repo, issueId, changeToken])
+  }, [loadBeadsDetails, repo, issueId, changeToken, entryMissing])
 
   if (entry?.data) {
     return (

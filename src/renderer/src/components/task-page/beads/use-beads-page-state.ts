@@ -52,6 +52,7 @@ const INITIAL_QUERY: BeadsListQuery = {
 export type BeadsPageState = {
   status: BeadsLoad<BeadsWorkspaceStatus>
   ready: boolean
+  tokenReady: boolean
   schema: BeadsSchema
   query: BeadsListQuery
   textInput: string
@@ -114,7 +115,29 @@ export function useBeadsPageState(repo: BeadsRepoRef): BeadsPageState {
   const ready = beadsSetupState(repoState.status) === 'ready'
   const request = useMemo(() => buildBeadsListRequest(query), [query])
   const requestKey = beadsListKey(request)
+  const indexKey = beadsListKey(BEADS_TREE_INDEX_REQUEST)
   const { changeToken } = repoState
+  const list = repoState.lists[requestKey]
+  const index = repoState.lists[indexKey]
+  // Why: the cache can evict either entry between change tokens (12-entry cap); their
+  // absence must retrigger the load even though tokenReady/changeToken did not change.
+  const indexMissing = index === undefined
+  const listMissing = list === undefined
+
+  // Why: Load more bumps `query.limit`, which is a new cache key with `data: null` until
+  // the bigger page answers. Falling back to the previous page's rows keeps the list (and
+  // scroll position) on screen instead of collapsing to empty and back.
+  const previousPageEntry =
+    query.limit > BEADS_LIST_PAGE_SIZE
+      ? repoState.lists[beadsListKey({ ...request, limit: query.limit - BEADS_LIST_PAGE_SIZE })]
+      : undefined
+  const listHasData = (entry: typeof list): boolean =>
+    entry?.data !== null && entry?.data !== undefined
+  const displayList = listHasData(list)
+    ? list
+    : listHasData(previousPageEntry)
+      ? previousPageEntry
+      : list
 
   useEffect(() => {
     if (!ready) {
@@ -143,7 +166,7 @@ export function useBeadsPageState(repo: BeadsRepoRef): BeadsPageState {
     }
     void loadBeadsSchema(repo)
     void loadBeadsList(repo, BEADS_TREE_INDEX_REQUEST)
-  }, [tokenReady, repo, changeToken, loadBeadsSchema, loadBeadsList])
+  }, [tokenReady, repo, changeToken, indexMissing, loadBeadsSchema, loadBeadsList])
 
   useEffect(() => {
     if (!tokenReady) {
@@ -151,17 +174,20 @@ export function useBeadsPageState(repo: BeadsRepoRef): BeadsPageState {
     }
     // requestKey (not the request object) keys the effect so equal queries don't refetch.
     void loadBeadsList(repo, request)
-  }, [tokenReady, repo, changeToken, requestKey, request, loadBeadsList])
+  }, [tokenReady, repo, changeToken, requestKey, request, listMissing, loadBeadsList])
 
   const schema = repoState.schema.data ?? FALLBACK_BEADS_SCHEMA
-  const list = repoState.lists[requestKey]
-  const index = repoState.lists[beadsListKey(BEADS_TREE_INDEX_REQUEST)]
   const indexIssues = index?.data?.issues ?? null
 
   const rows = useMemo(
     () =>
-      buildBeadsListRows({ issues: list?.data?.issues ?? [], index: indexIssues, mode, collapsed }),
-    [list?.data, indexIssues, mode, collapsed]
+      buildBeadsListRows({
+        issues: displayList?.data?.issues ?? [],
+        index: indexIssues,
+        mode,
+        collapsed
+      }),
+    [displayList?.data, indexIssues, mode, collapsed]
   )
   const progressByParent = useMemo(
     () =>
@@ -196,6 +222,7 @@ export function useBeadsPageState(repo: BeadsRepoRef): BeadsPageState {
   return {
     status: repoState.status,
     ready,
+    tokenReady,
     schema,
     query,
     textInput,
@@ -209,8 +236,8 @@ export function useBeadsPageState(repo: BeadsRepoRef): BeadsPageState {
     pollError: repoState.pollError,
     indexTruncated: index?.data?.hasMore ?? false,
     listLoading: list?.loading ?? false,
-    listLoaded: list?.data !== null && list?.data !== undefined,
-    hasMore: list?.data?.hasMore ?? false,
+    listLoaded: listHasData(displayList),
+    hasMore: displayList?.data?.hasMore ?? false,
     currentKey,
     openIssueId,
     setPreset: (preset) =>

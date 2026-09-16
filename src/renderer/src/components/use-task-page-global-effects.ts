@@ -1,5 +1,62 @@
 import type { TaskPageJiraIssueCreationModel } from './use-task-page-jira-issue-creation'
 import { useEffect } from 'react'
+
+// Why: open menus/popovers/selects/sheets own Esc; capture-phase leave would steal it from Radix.
+export function isEscapeOwnedByOpenOverlay(): boolean {
+  return Boolean(
+    document.querySelector(
+      '[data-slot="dropdown-menu-content"], [data-slot="popover-content"], [data-slot="select-content"], [data-slot="sheet-content"], [role="menu"]'
+    )
+  )
+}
+
+// Why: extracted so the Esc-to-close wiring is testable without the full TaskPage model.
+export function useEscapeClosesTaskPage(
+  closeTaskPage: () => void,
+  menuOrDetailOpen: boolean
+): void {
+  useEffect(() => {
+    // Why: when a modal/drawer is open, let it own Esc dismissal.
+    if (menuOrDetailOpen) {
+      return
+    }
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') {
+        return
+      }
+      const target = event.target
+      if (!(target instanceof HTMLElement)) {
+        return
+      }
+
+      if (isEscapeOwnedByOpenOverlay()) {
+        return
+      }
+
+      // Why: Esc first blurs a focused input so it doesn't accidentally close the whole page; only closes once focus is outside an input.
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        target.isContentEditable
+      ) {
+        event.preventDefault()
+        target.blur()
+        return
+      }
+      event.preventDefault()
+      closeTaskPage()
+    }
+    window.addEventListener('keydown', onKeyDown, {
+      capture: true
+    })
+    return () =>
+      window.removeEventListener('keydown', onKeyDown, {
+        capture: true
+      })
+  }, [closeTaskPage, menuOrDetailOpen])
+}
+
 export function useTaskPageGlobalEffects(model: TaskPageJiraIssueCreationModel) {
   const {
     closeTaskPage,
@@ -27,68 +84,16 @@ export function useTaskPageGlobalEffects(model: TaskPageJiraIssueCreationModel) 
     newJiraIssueOpen
   } = model
   const githubTasksBusy = tasksLoading || tasksRefreshing || tasksFiltering
-  useEffect(() => {
-    // Why: when a modal is open, let it own Esc dismissal.
-    if (
-      dialogWorkItem ||
-      selectedJiraIssue ||
-      selectedLinearIssue ||
-      newIssueOpen ||
-      newLinearIssueOpen ||
-      newJiraIssueOpen ||
-      activeModal !== 'none'
-    ) {
-      return
-    }
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key !== 'Escape') {
-        return
-      }
-      const target = event.target
-      if (!(target instanceof HTMLElement)) {
-        return
-      }
-
-      // Why: open menus/popovers/selects own Esc; capture-phase leave would steal it from Radix.
-      if (
-        document.querySelector(
-          '[data-slot="dropdown-menu-content"], [data-slot="popover-content"], [data-slot="select-content"], [role="menu"]'
-        )
-      ) {
-        return
-      }
-
-      // Why: Esc first blurs a focused input so it doesn't accidentally close the whole page; only closes once focus is outside an input.
-      if (
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement ||
-        target instanceof HTMLSelectElement ||
-        target.isContentEditable
-      ) {
-        event.preventDefault()
-        target.blur()
-        return
-      }
-      event.preventDefault()
-      closeTaskPage()
-    }
-    window.addEventListener('keydown', onKeyDown, {
-      capture: true
-    })
-    return () =>
-      window.removeEventListener('keydown', onKeyDown, {
-        capture: true
-      })
-  }, [
-    activeModal,
-    closeTaskPage,
-    dialogWorkItem,
-    newIssueOpen,
-    newLinearIssueOpen,
-    newJiraIssueOpen,
-    selectedLinearIssue,
-    selectedJiraIssue
-  ])
+  const menuOrDetailOpen = Boolean(
+    dialogWorkItem ||
+    selectedJiraIssue ||
+    selectedLinearIssue ||
+    newIssueOpen ||
+    newLinearIssueOpen ||
+    newJiraIssueOpen ||
+    activeModal !== 'none'
+  )
+  useEscapeClosesTaskPage(closeTaskPage, menuOrDetailOpen)
   useEffect(() => {
     if (!preflightStatusCurrent || !preflightStatusChecked) {
       void refreshPreflightStatus()
