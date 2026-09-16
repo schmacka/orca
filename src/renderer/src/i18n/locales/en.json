@@ -6296,7 +6296,13 @@
           "title": "Worktree scan failed for {{value0}}",
           "retry": "Retry scan",
           "retained": "Existing worktrees are kept until a scan succeeds. Click to retry."
-        }
+        },
+        "beadsDispositionClose": "Close with reason",
+        "beadsDispositionUnclaim": "Unclaim (back to open)",
+        "beadsDispositionLeave": "Leave as is",
+        "beadsDispositionLegend": "What should happen to the linked bead?",
+        "beadsDispositionReasonLabel": "Reason",
+        "beadsDispositionReasonPlaceholder": "Why is this bead closing?"
       },
       "shared": {
         "useDaemonActions": {
