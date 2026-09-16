@@ -45,6 +45,11 @@ export function useBeadsEpicContextAugmentation(input: BeadsEpicContextAugmentat
 
     return () => {
       cancelled = true
+      // Why: settings can change reference while this fetch is in flight (e.g. a
+      // runtime environment swap); without clearing this, the re-run would see
+      // startedForEpicIdRef already set to this epicId and start no replacement,
+      // silently losing the result with no retry.
+      startedForEpicIdRef.current = null
     }
   }, [initialBeadsEpicSource, settings, setLinkedWorkItem])
 }

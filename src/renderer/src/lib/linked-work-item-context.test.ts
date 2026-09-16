@@ -341,10 +341,46 @@ describe('beads launch context', () => {
     )
   })
 
+  // Why: also the regression guard for "without a linkedContext" required alongside
+  // the epic-linkedContext test below — BEAD_ITEM carries no linkedContext, so this
+  // must keep returning the plain two-line block character for character.
   it('gives resolveQuickCreateLinkedWorkItemPrompt a readable beads prompt', () => {
     expect(resolveQuickCreateLinkedWorkItemPrompt(BEAD_ITEM, '').draftPrompt).toBe(
       `${EXPECTED_BEAD_BLOCK}\n`
     )
+  })
+
+  it('prefers a usable beads linkedContext (e.g. an epic block) over the regenerated two-line block', () => {
+    const epicRenderedText = [
+      'Linked Beads epic: cwf.3 — Fix launch context handoff',
+      'Ready children:',
+      '- cwf.3.1 — Decide the store line',
+      'Read any of them with `bd show <id>` (run `bd prime` for workflow context).'
+    ].join('\n')
+    const epicItem = {
+      ...BEAD_ITEM,
+      linkedContext: {
+        provider: 'beads' as const,
+        version: 1 as const,
+        renderedText: epicRenderedText
+      }
+    }
+
+    const { draftPrompt } = resolveQuickCreateLinkedWorkItemPrompt(epicItem, '')
+
+    expect(draftPrompt).toBe(`${epicRenderedText}\n`)
+    expect(draftPrompt).toContain('Ready children:')
+  })
+
+  it('still ignores a Linear linkedContext, even though beads now reads its own', () => {
+    // Why: a Linear linkedContext is a large snapshot fetched from Linear and must
+    // never reach the prompt (see expectNoLinearTicketContent above) — beads reading
+    // its own linkedContext must not widen that leak to another provider.
+    const { draftPrompt } = resolveQuickCreateLinkedWorkItemPrompt(
+      { number: 0, ...LINEAR_ITEM },
+      'note'
+    )
+    expectNoLinearTicketContent(draftPrompt)
   })
 
   it('never puts the synthetic bd:// URL in front of an agent', () => {

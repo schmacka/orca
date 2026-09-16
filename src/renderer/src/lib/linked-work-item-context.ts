@@ -14,7 +14,9 @@ const LINKED_CONTEXT_LINE_SPLIT_PATTERN = /\r\n|\r|\n|\u2028|\u2029/
 const LINKED_CONTEXT_BEGIN_DELIMITER = '--- BEGIN LINKED WORK ITEM CONTEXT ---'
 const LINKED_CONTEXT_END_DELIMITER = '--- END LINKED WORK ITEM CONTEXT ---'
 
-function getUsableLinkedContext(
+// Why: exported so buildBeadsLaunchContextBlock (beads-launch-context.ts) can reuse
+// the same "usable" test instead of re-checking version/renderedText itself.
+export function getUsableLinkedContext(
   linkedContext: LinkedWorkItemContext | null | undefined
 ): LinkedWorkItemContext | null {
   if (!linkedContext || linkedContext.version !== 1 || !linkedContext.renderedText.trim()) {
@@ -124,7 +126,8 @@ function buildProviderLaunchContextBlock(
   if (isBeadsWorkItemReference(item)) {
     return buildBeadsLaunchContextBlock({
       identifier: item?.beadsIdentifier,
-      title: item?.title
+      title: item?.title,
+      linkedContext: item?.linkedContext
     })
   }
   return null

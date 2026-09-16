@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BeadsIssue } from '../../../shared/beads/beads-issue-types'
-import type { BeadsListArgs } from '../../../shared/beads/beads-contract'
 import type { BeadsRepoRef } from '@/runtime/runtime-beads-client'
 import { buildBeadsEpicPromptBlock, fetchBeadsEpicLinkedContext } from './beads-epic-launch-context'
 
@@ -69,8 +68,10 @@ function readyChild(id: string, title: string): BeadsIssue {
   }
 }
 
+// Why: type the mock's parameters directly (not the readback) — the call tuple is
+// then already typed as BeadsListArgs, with no cast needed to read it back.
 const beadsApi = {
-  listIssues: vi.fn()
+  listIssues: vi.fn<Window['api']['beads']['listIssues']>()
 }
 
 beforeEach(() => {
@@ -103,10 +104,10 @@ describe('fetchBeadsEpicLinkedContext', () => {
         '- cwf.1 — Decide the store line\n' +
         'Read any of them with `bd show <id>` (run `bd prime` for workflow context).'
     })
-    const args = beadsApi.listIssues.mock.calls[0]?.[0] as BeadsListArgs
+    const args = beadsApi.listIssues.mock.calls[0]?.[0]
     // Why: the 'ready' view rejects `statuses` and `includeClosed` — pinning the exact
     // request shape catches a regression that adds either back.
-    expect(args.request).toEqual({
+    expect(args?.request).toEqual({
       view: 'ready',
       filter: { parent: 'cwf' },
       limit: 200

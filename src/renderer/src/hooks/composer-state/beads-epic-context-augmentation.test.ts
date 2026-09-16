@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import { act, renderHook } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import type { BeadsRepoRef } from '@/runtime/runtime-beads-client'
 import type { LinkedWorkItemSummary } from '@/lib/new-workspace'
 import {
@@ -17,7 +17,25 @@ const REPO: BeadsRepoRef = {
   executionHostId: null
 }
 
-const beadsApi = { listIssues: vi.fn() }
+type SetLinkedWorkItemMock = Mock<BeadsEpicContextAugmentationInput['setLinkedWorkItem']>
+
+// Why: reads the functional updater a setLinkedWorkItem call was given and invokes it —
+// a properly-typed helper instead of an `as` cast at each call site. Throws (rather than
+// silently passing) if the call captured a plain value instead of an updater function,
+// since every production call site in beads-epic-context-augmentation.ts uses one.
+function applyLinkedWorkItemUpdate(
+  setLinkedWorkItem: SetLinkedWorkItemMock,
+  callIndex: number,
+  current: LinkedWorkItemSummary | null
+): LinkedWorkItemSummary | null {
+  const updateArg = setLinkedWorkItem.mock.calls[callIndex]?.[0]
+  if (typeof updateArg !== 'function') {
+    throw new Error('expected setLinkedWorkItem to be called with a functional updater')
+  }
+  return updateArg(current)
+}
+
+const beadsApi = { listIssues: vi.fn<Window['api']['beads']['listIssues']>() }
 
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -47,7 +65,7 @@ describe('useBeadsEpicContextAugmentation', () => {
   it('carries the fetched epic block into the linked item as linkedContext — the block reaching the composer, not just the string builder', async () => {
     const gate = deferred<{ ok: true; value: { issues: unknown[]; hasMore: boolean } }>()
     beadsApi.listIssues.mockReturnValue(gate.promise)
-    const setLinkedWorkItem = vi.fn<BeadsEpicContextAugmentationInput['setLinkedWorkItem']>()
+    const setLinkedWorkItem: SetLinkedWorkItemMock = vi.fn()
 
     renderHook(() =>
       useBeadsEpicContextAugmentation({
@@ -68,7 +86,6 @@ describe('useBeadsEpicContextAugmentation', () => {
     await act(async () => gate.promise)
 
     expect(setLinkedWorkItem).toHaveBeenCalledTimes(1)
-    const updater = setLinkedWorkItem.mock.calls[0]?.[0]
     // Why: setLinkedWorkItem is called with a functional updater (guards staleness
     // against the current value, not a snapshot) — exercise it directly, the same
     // way the composer's own state setter would.
@@ -80,12 +97,7 @@ describe('useBeadsEpicContextAugmentation', () => {
       url: 'bd://cwf',
       beadsIdentifier: 'cwf'
     }
-    const next =
-      typeof updater === 'function'
-        ? (updater as (value: LinkedWorkItemSummary | null) => LinkedWorkItemSummary | null)(
-            current
-          )
-        : updater
+    const next = applyLinkedWorkItemUpdate(setLinkedWorkItem, 0, current)
     expect(next?.linkedContext).toEqual({
       provider: 'beads',
       version: 1,
@@ -98,7 +110,7 @@ describe('useBeadsEpicContextAugmentation', () => {
   })
 
   it('never fetches or updates the linked item for a non-epic bead', async () => {
-    const setLinkedWorkItem = vi.fn<BeadsEpicContextAugmentationInput['setLinkedWorkItem']>()
+    const setLinkedWorkItem: SetLinkedWorkItemMock = vi.fn()
 
     renderHook(() =>
       useBeadsEpicContextAugmentation({
@@ -118,7 +130,7 @@ describe('useBeadsEpicContextAugmentation', () => {
       ok: false,
       error: { kind: 'failed', message: 'bd is busy' }
     })
-    const setLinkedWorkItem = vi.fn<BeadsEpicContextAugmentationInput['setLinkedWorkItem']>()
+    const setLinkedWorkItem: SetLinkedWorkItemMock = vi.fn()
 
     renderHook(() =>
       useBeadsEpicContextAugmentation({
@@ -135,7 +147,7 @@ describe('useBeadsEpicContextAugmentation', () => {
   it('drops a response for an epic the composer no longer points at', async () => {
     const gate = deferred<{ ok: true; value: { issues: unknown[]; hasMore: boolean } }>()
     beadsApi.listIssues.mockReturnValue(gate.promise)
-    const setLinkedWorkItem = vi.fn<BeadsEpicContextAugmentationInput['setLinkedWorkItem']>()
+    const setLinkedWorkItem: SetLinkedWorkItemMock = vi.fn()
 
     renderHook(() =>
       useBeadsEpicContextAugmentation({
@@ -147,7 +159,6 @@ describe('useBeadsEpicContextAugmentation', () => {
     gate.resolve({ ok: true, value: { issues: [], hasMore: false } })
     await act(async () => gate.promise)
 
-    const updater = setLinkedWorkItem.mock.calls[0]?.[0]
     const swapped: LinkedWorkItemSummary = {
       provider: 'beads',
       type: 'issue',
@@ -156,14 +167,47 @@ describe('useBeadsEpicContextAugmentation', () => {
       url: 'bd://other',
       beadsIdentifier: 'other'
     }
-    const next =
-      typeof updater === 'function'
-        ? (updater as (value: LinkedWorkItemSummary | null) => LinkedWorkItemSummary | null)(
-            swapped
-          )
-        : updater
+    const next = applyLinkedWorkItemUpdate(setLinkedWorkItem, 0, swapped)
     // Why: the user swapped the linked item while the fetch was in flight — the
     // stale epic's children must not attach to whatever is linked now.
     expect(next).toBe(swapped)
+  })
+
+  it('retries after a settings change interrupts an in-flight fetch, instead of silently dropping it', async () => {
+    const first = deferred<{ ok: true; value: { issues: unknown[]; hasMore: boolean } }>()
+    const second = deferred<{ ok: true; value: { issues: unknown[]; hasMore: boolean } }>()
+    beadsApi.listIssues.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise)
+    const setLinkedWorkItem: SetLinkedWorkItemMock = vi.fn()
+    const source = { repo: REPO, epic: { id: 'cwf', title: 'Story evaluation kit' } }
+
+    const hook = renderHook(
+      ({ settings }: { settings: { activeRuntimeEnvironmentId: string | null } }) =>
+        useBeadsEpicContextAugmentation({
+          initialBeadsEpicSource: source,
+          settings,
+          setLinkedWorkItem
+        }),
+      { initialProps: { settings: { activeRuntimeEnvironmentId: null } } }
+    )
+
+    // Why: a new settings object with the same (still-local) value — a reference
+    // change with no routing change, e.g. an unrelated settings field updating
+    // upstream — while the first fetch is still in flight must not leave the epic id
+    // "already started" forever; the effect's cleanup has to clear that so this
+    // re-run retries.
+    hook.rerender({ settings: { activeRuntimeEnvironmentId: null } })
+    first.resolve({ ok: true, value: { issues: [], hasMore: false } })
+    await act(async () => first.promise)
+
+    expect(beadsApi.listIssues).toHaveBeenCalledTimes(2)
+    expect(setLinkedWorkItem).not.toHaveBeenCalled()
+
+    second.resolve({
+      ok: true,
+      value: { issues: [readyChild('cwf.1', 'Decide the store line')], hasMore: false }
+    })
+    await act(async () => second.promise)
+
+    expect(setLinkedWorkItem).toHaveBeenCalledTimes(1)
   })
 })
