@@ -1,4 +1,6 @@
 import type { TaskProvider } from '../../../shared/task-providers'
+import { buildBeadsLaunchContextBlock, isBeadsWorkItemReference } from './beads-launch-context'
+import { escapeLinkedContextControlChars } from './linked-context-control-chars'
 
 export type LinkedWorkItemContext = {
   provider: TaskProvider
@@ -11,7 +13,6 @@ const LINKED_CONTEXT_TRUNCATION_MARKER = '[linked context truncated]'
 const LINKED_CONTEXT_LINE_SPLIT_PATTERN = /\r\n|\r|\n|\u2028|\u2029/
 const LINKED_CONTEXT_BEGIN_DELIMITER = '--- BEGIN LINKED WORK ITEM CONTEXT ---'
 const LINKED_CONTEXT_END_DELIMITER = '--- END LINKED WORK ITEM CONTEXT ---'
-const UNICODE_FORMAT_CONTROL_PATTERN = /\p{Cf}/u
 
 function getUsableLinkedContext(
   linkedContext: LinkedWorkItemContext | null | undefined
@@ -98,17 +99,35 @@ export function buildLinearLaunchContextBlock(args: LinearLaunchContextArgs): st
   return lines.join('\n')
 }
 
-function escapeLinkedContextControlChars(value: string): string {
-  return Array.from(value, (char) => {
-    const code = char.codePointAt(0) ?? 0
-    if (char === '\t') {
-      return '  '
-    }
-    if (isLinkedContextControlCode(code)) {
-      return `\\x${code.toString(16).padStart(2, '0').toUpperCase()}`
-    }
-    return char
-  }).join('')
+type ProviderLaunchContextItem = {
+  provider?: TaskProvider
+  title?: string
+  url?: string
+  linearIdentifier?: string
+  beadsIdentifier?: string
+  linkedContext?: LinkedWorkItemContext
+}
+
+// Why: Linear and Beads both replace raw source data with a stable identity
+// block; branch once here instead of duplicating it in every builder.
+function buildProviderLaunchContextBlock(
+  item: ProviderLaunchContextItem | null | undefined
+): string | null {
+  if (isLinearWorkItemReference(item)) {
+    return buildLinearLaunchContextBlock({
+      provider: item?.provider,
+      identifier: item?.linearIdentifier,
+      title: item?.title,
+      url: item?.url
+    })
+  }
+  if (isBeadsWorkItemReference(item)) {
+    return buildBeadsLaunchContextBlock({
+      identifier: item?.beadsIdentifier,
+      title: item?.title
+    })
+  }
+  return null
 }
 
 function escapeLinkedContextSourceLine(value: string): string {
@@ -123,18 +142,6 @@ function escapeLinkedContextSourceLine(value: string): string {
     return `\\${escaped}`
   }
   return escaped
-}
-
-function isLinkedContextControlCode(code: number): boolean {
-  return (
-    (code >= 0x00 && code <= 0x1f) ||
-    (code >= 0x7f && code <= 0x9f) ||
-    isUnicodeFormatControlCode(code)
-  )
-}
-
-function isUnicodeFormatControlCode(code: number): boolean {
-  return UNICODE_FORMAT_CONTROL_PATTERN.test(String.fromCodePoint(code))
 }
 
 function capLinkedContextSourceLines(args: { sourceLines: string; fixedChars: number }): string {
@@ -153,21 +160,22 @@ function capLinkedContextSourceLines(args: { sourceLines: string; fixedChars: nu
 export function getLinkedWorkItemPromptContext(
   linkedWorkItem:
     | (Pick<
-        { provider?: TaskProvider; url: string; title?: string; linearIdentifier?: string },
-        'provider' | 'url' | 'title' | 'linearIdentifier'
+        {
+          provider?: TaskProvider
+          url: string
+          title?: string
+          linearIdentifier?: string
+          beadsIdentifier?: string
+        },
+        'provider' | 'url' | 'title' | 'linearIdentifier' | 'beadsIdentifier'
       > & { linkedContext?: LinkedWorkItemContext })
     | null
     | undefined
 ): { linkedUrls: string[]; linkedContextBlocks: string[] } {
-  if (isLinearWorkItemReference(linkedWorkItem)) {
-    const linearBlock = buildLinearLaunchContextBlock({
-      provider: linkedWorkItem?.provider,
-      identifier: linkedWorkItem?.linearIdentifier,
-      title: linkedWorkItem?.title,
-      url: linkedWorkItem?.url
-    })
-    return linearBlock
-      ? { linkedUrls: [], linkedContextBlocks: [linearBlock] }
+  if (isLinearWorkItemReference(linkedWorkItem) || isBeadsWorkItemReference(linkedWorkItem)) {
+    const providerBlock = buildProviderLaunchContextBlock(linkedWorkItem)
+    return providerBlock
+      ? { linkedUrls: [], linkedContextBlocks: [providerBlock] }
       : { linkedUrls: [], linkedContextBlocks: [] }
   }
   const linkedUrl = linkedWorkItem?.url?.trim()
@@ -182,19 +190,15 @@ export function getLaunchableWorkItemDraftContent(args: {
   url: string
   title?: string
   linearIdentifier?: string
+  beadsIdentifier?: string
   linkedContext?: LinkedWorkItemContext
 }): string {
   if (args.pasteContent?.trim()) {
     return args.pasteContent
   }
-  if (isLinearWorkItemReference(args)) {
-    const linearBlock = buildLinearLaunchContextBlock({
-      provider: args.provider,
-      identifier: args.linearIdentifier,
-      title: args.title,
-      url: args.url
-    })
-    return linearBlock ? formatDraftContextBlock(linearBlock) : ''
+  if (isLinearWorkItemReference(args) || isBeadsWorkItemReference(args)) {
+    const providerBlock = buildProviderLaunchContextBlock(args)
+    return providerBlock ? formatDraftContextBlock(providerBlock) : ''
   }
   return args.url
 }
@@ -208,26 +212,24 @@ export function resolveQuickCreateLinkedWorkItemPrompt(
           url: string
           title?: string
           linearIdentifier?: string
+          beadsIdentifier?: string
         },
-        'provider' | 'number' | 'url' | 'title' | 'linearIdentifier'
+        'provider' | 'number' | 'url' | 'title' | 'linearIdentifier' | 'beadsIdentifier'
       > & { linkedContext?: LinkedWorkItemContext })
     | null
     | undefined,
   note: string
 ): { prompt: string; draftPrompt: string | null } {
   const trimmedNote = note.trim()
-  const linearBlock = isLinearWorkItemReference(linkedWorkItem)
-    ? buildLinearLaunchContextBlock({
-        provider: linkedWorkItem?.provider,
-        identifier: linkedWorkItem?.linearIdentifier,
-        title: linkedWorkItem?.title,
-        url: linkedWorkItem?.url
-      })
-    : null
-  const linearDraft = linearBlock ? formatDraftContextBlock(linearBlock) : null
-  const linkedUrl = linkedWorkItem?.url?.trim() || null
-  const draftPrompt = linearDraft
-    ? [trimmedNote, linearDraft].filter(Boolean).join('\n\n')
+  const isProviderReference =
+    isLinearWorkItemReference(linkedWorkItem) || isBeadsWorkItemReference(linkedWorkItem)
+  const providerBlock = isProviderReference ? buildProviderLaunchContextBlock(linkedWorkItem) : null
+  const providerDraft = providerBlock ? formatDraftContextBlock(providerBlock) : null
+  // Why: once a linked item is provider-owned, never fall back to its raw
+  // (possibly synthetic, e.g. bd://) url just because the block came back empty.
+  const linkedUrl = isProviderReference ? null : linkedWorkItem?.url?.trim() || null
+  const draftPrompt = providerDraft
+    ? [trimmedNote, providerDraft].filter(Boolean).join('\n\n')
     : linkedUrl
       ? [trimmedNote, linkedUrl].filter(Boolean).join('\n\n')
       : null
