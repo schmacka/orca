@@ -3,11 +3,12 @@ import type { BeadsStatusCategory } from '../../../../shared/beads/beads-issue-t
 import type { BeadsResult } from '../../../../shared/beads/beads-contract'
 import type { BeadsIssueDetails } from '../../../../shared/beads/beads-issue-types'
 import type { BeadsRepoRef } from '@/runtime/runtime-beads-client'
+import type { WorkspaceLinkedItem } from '../../../../shared/worktree/types'
 
 export type BeadsDisposition = 'close' | 'unclaim' | 'leave'
 
 export function beadsDispositionNeeded(input: {
-  linkedWorkItem: { provider: string } | null
+  linkedWorkItem: Pick<WorkspaceLinkedItem, 'provider'> | null
   beadStatusCategory: BeadsStatusCategory | null
 }): boolean {
   // Require linked beads item with known status, not already closed.

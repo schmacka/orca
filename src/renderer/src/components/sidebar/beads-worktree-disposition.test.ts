@@ -104,6 +104,15 @@ describe('beadsDispositionNeeded', () => {
     ).toBe(false)
   })
 
+  it('stays quiet for another provider even with a live status', () => {
+    expect(
+      beadsDispositionNeeded({
+        linkedWorkItem: { provider: 'jira' as const },
+        beadStatusCategory: 'wip'
+      })
+    ).toBe(false)
+  })
+
   it('stays quiet with no linked item', () => {
     expect(beadsDispositionNeeded({ linkedWorkItem: null, beadStatusCategory: null })).toBe(false)
   })
