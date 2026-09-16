@@ -235,7 +235,9 @@ export function useTaskPageComposerActions(model: TaskPageJiraListEffectsModel) 
     hasJiraDetail: Boolean(selectedJiraIssue),
     hasLinearIssueDetail: Boolean(selectedLinearIssue),
     hasLinearProjectContext: Boolean(selectedLinearProject),
-    hasLinearViewContext: Boolean(selectedLinearCustomView)
+    hasLinearViewContext: Boolean(selectedLinearCustomView),
+    // Why: Beads detail lives inside its own content; list chrome stays visible.
+    hasBeadsDetail: false
   })
   const nextModel = model as typeof model & {
     openComposerForLinearItem: typeof openComposerForLinearItem

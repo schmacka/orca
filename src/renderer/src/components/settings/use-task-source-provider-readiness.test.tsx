@@ -122,6 +122,8 @@ describe('useTaskSourceProviderReadiness', () => {
       skillInstalled: true,
       skillChecking: false
     })
+    // Why: Beads readiness is per repository, reported by the Tasks tab itself.
+    expect(latest?.beads).toMatchObject({ connected: true, checking: false })
   })
 
   it('does not read code-host connection facts out of a failed preflight snapshot', async () => {

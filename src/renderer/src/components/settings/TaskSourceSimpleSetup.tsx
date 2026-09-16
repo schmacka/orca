@@ -123,3 +123,33 @@ export function JiraSetupSteps(
     </>
   )
 }
+
+export function BeadsSetupSteps(props: {
+  visible: boolean
+  canHide: boolean
+  onToggleVisible: () => void
+}): React.JSX.Element {
+  return (
+    <ol className="divide-y divide-border/50">
+      <TaskSourceStepRow
+        index={1}
+        state="pending"
+        title={translate(
+          'auto.components.settings.TaskSourceSimpleSetup.beadsInstallTitle',
+          'Install bd 1.2.0 or newer'
+        )}
+        description={translate(
+          'auto.components.settings.TaskSourceSimpleSetup.beadsInstallDescription',
+          'Each repository needs bd initialized (bd init). The Beads tab checks this per repository.'
+        )}
+      />
+      <TaskSourceShowInTasksStep
+        index={2}
+        providerLabel={translate('auto.components.task-page.beads.providerLabel', 'Beads')}
+        visible={props.visible}
+        canHide={props.canHide}
+        onToggleVisible={props.onToggleVisible}
+      />
+    </ol>
+  )
+}

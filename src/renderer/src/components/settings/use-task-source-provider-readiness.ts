@@ -89,6 +89,13 @@ export function useTaskSourceProviderReadiness(
         connected: jiraConnected,
         checking: jiraChecking,
         visible: visible.has('jira')
+      },
+      // Why: readiness is per repository and shown on the Tasks tab itself,
+      // not tracked as a global connection here.
+      beads: {
+        connected: true,
+        checking: false,
+        visible: visible.has('beads')
       }
     }
   }, [

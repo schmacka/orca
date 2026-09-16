@@ -165,10 +165,9 @@ function setupHostMatchesRunContext(
   if (setupHostId === runHostId) {
     return true
   }
-  const targetHostId = getRuntimeTargetHostId(target)
   // Why: remote-runtime project lists project the server-local host as runtime:<env>,
   // while CLI-created automations can preserve the server's durable local run host.
-  return targetHostId !== null && setupHostId === targetHostId && runHostId === 'local'
+  return getRuntimeTargetHostId(target) === setupHostId && runHostId === 'local'
 }
 
 function repoHostMatchesRunContext(
@@ -179,10 +178,9 @@ function repoHostMatchesRunContext(
   if (runHostId === getRepoExecutionHostId(repo)) {
     return true
   }
-  const targetHostId = getRuntimeTargetHostId(target)
   // Why: repos fetched from a remote runtime are owned by runtime:<env> in the
   // renderer, but saved automations still target the host setup that runs there.
-  return targetHostId !== null && getRepoExecutionHostId(repo) === targetHostId
+  return getRuntimeTargetHostId(target) === getRepoExecutionHostId(repo)
 }
 
 function getAutomationSourceAvailability(
@@ -262,6 +260,8 @@ function getAutomationSourceProviderLabel(provider: TaskSourceContext['provider'
       return 'Linear'
     case 'jira':
       return 'Jira'
+    case 'beads':
+      return 'Beads'
   }
 }
 

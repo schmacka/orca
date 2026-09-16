@@ -123,11 +123,19 @@ export async function launchWorkItemDirect(args: LaunchWorkItemDirectArgs): Prom
   const finalSetupDecision: SetupDecision =
     trustDecision === 'skip' ? 'skip' : setupResolution.decision
 
+  // Why: WorkspaceIntentWorkItem's provider union predates beads (M3 territory);
+  // beads work items never flow through this GitHub/GitLab/Linear/Jira direct-launch path.
+  const workspaceIntentProvider = item.provider === 'beads' ? undefined : item.provider
   const workspaceIntentName =
     itemNumber !== null
       ? getWorkspaceIntentName({
           sourceText: item.pasteContent,
-          workItem: { ...item, type: itemType, number: itemNumber }
+          workItem: {
+            ...item,
+            type: itemType,
+            number: itemNumber,
+            provider: workspaceIntentProvider
+          }
         })
       : null
   const workspaceName = getWorkspaceSeedName({

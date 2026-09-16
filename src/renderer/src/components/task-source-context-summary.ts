@@ -11,9 +11,7 @@ export type TaskSourceContextSummary = {
   title: string
 }
 
-export type TaskSourceAvailabilityNotice = {
-  label: string
-  title: string
+export type TaskSourceAvailabilityNotice = TaskSourceContextSummary & {
   blocking: boolean
 }
 
@@ -49,6 +47,7 @@ export function getTaskSourceContextSummary(args: {
   switch (args.provider) {
     case 'github':
     case 'gitlab':
+    case 'beads':
       return getRepoBackedTaskSourceSummary(args)
     case 'linear':
       return getAccountBackedTaskSourceSummary(args.providerLabel, {
@@ -198,6 +197,8 @@ function getProviderIdentityLabel(
       return identity.workspaceName ?? identity.workspaceId ?? null
     case 'jira':
       return identity.siteUrl ?? identity.siteId ?? null
+    case 'beads':
+      return null
   }
 }
 
