@@ -12,7 +12,7 @@ vi.mock('./runtime-rpc-client', () => ({
   // own so `instanceof` still classifies (same shape as remote-agent-session-launch.test.ts).
   RuntimeRpcCallError: class RuntimeRpcCallError extends Error {
     code: string
-    constructor(response: { error: { code: string; message: string } }) {
+    constructor(response: { id: string; ok: false; error: { code: string; message: string } }) {
       super(response.error.message)
       this.code = response.error.code
     }
@@ -129,7 +129,11 @@ describe('beads runtime client', () => {
 
   it('reports a refused RPC as failed, not as an offline host', async () => {
     mocks.callRuntimeRpc.mockRejectedValue(
+      // RuntimeRpcFailure needs id and ok:false — the imported symbol carries the real
+      // constructor's type even though the module is mocked at runtime.
       new RuntimeRpcCallError({
+        id: 'rpc-1',
+        ok: false,
         error: { code: 'forbidden', message: 'scope does not allow beads.getStatus' }
       })
     )
