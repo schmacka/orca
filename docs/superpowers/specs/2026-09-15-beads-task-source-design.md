@@ -39,7 +39,10 @@ Make beads (`bd`, a local issue tracker built on git and Dolt) a first-class tas
 ```
 Renderer
   task-page/beads/*            tree | flat | board list, split detail, dialogs
-  store/slices/beads/*         per-database state, list and detail caches, optimistic writes
+                                (M2: Content.tsx is a self-contained tab body — the
+                                Beads tab doesn't add stages to the task-page hook chain)
+  store/slices/beads.ts, beads-slice-contract.ts, beads-load-state.ts
+                                per-database state, list and detail caches, optimistic writes
   runtime/runtime-beads-client.ts   routes to IPC (local or SSH repo) or RPC (remote Orca runtime)
         │
 Main process: src/main/beads/
@@ -88,7 +91,7 @@ Each entry has a typed input, an argv builder and an output parser. Nothing else
   - `close` (with reason), `reopen`, `defer`, `undefer`, `delete`
   - `comment`, `labelAdd`, `labelRemove`
 
-Dependencies, graph and gates: M5 plan.
+Dependencies and the full graph: M5 plan. Gates and the merge-slot holder: M4 plan — `BeadsIssueDetails` from M1 carries `blockedBy` and dependency edges only, with no gate or merge-slot data in the contract, so exposing them needs new bd commands and contract fields first.
 
 **Input rules:**
 - IDs must match `^[A-Za-z0-9][A-Za-z0-9._-]*$` and are never matched by prefix.
@@ -121,12 +124,24 @@ Dependencies, graph and gates: M5 plan.
   | All open | `list` |
   | Closed | `list --status closed` |
 
-  Each preset shows a count.
-- **Filters:** type, label, epic (`--parent`), priority, assignee (including "me") and text (`bd search`). All filtering happens in bd.
+  Each preset shows a count. **M2 renders the preset buttons without counts; counts land in M4** alongside the board's per-column counts, both from one count-only backend call.
+- **Filters:** type, label, epic (`--parent`), priority, assignee (including "me") and text (`bd search`). All filtering happens in bd. Assignee **"me" arrives with the actor setting in M3** — M2's assignee filter takes free text only.
+
+  M2 restricts which filters apply per view, per `SUPPORTED_FILTERS` in
+  `src/renderer/src/components/task-page/beads/beads-list-request.ts`; the filters bar
+  (`BeadsFiltersBar.tsx`) disables a control the current view can't apply:
+
+  | View | Type | Labels | Parent (epic) | Priority | Assignee |
+  |---|---|---|---|---|---|
+  | List (`list`) | yes | yes | yes | yes | yes |
+  | Ready (`ready`) | yes | yes | yes | yes | yes |
+  | Blocked (`blocked`) | — | — | yes | — | — |
+  | Search (`search`) | yes | yes | — | yes | yes |
+
 - **List modes** (remembered per repo):
   - **Tree (default):** epics can be collapsed and show progress (closed children / total). An epic that doesn't match the preset still appears as a greyed context header when any of its children match.
   - **Flat:** chips show the parent and open blockers.
-  - **Board:** one column per status category, ordered by the schema. Dragging a card runs `update --status`, with an optimistic update.
+  - **Board: M4 (needs drag-to-change-status).** One column per status category, ordered by the schema. Dragging a card will run `update --status`, with an optimistic update.
 - **Pagination:** 200 rows, then "Load more". Lists are never silently truncated.
 - **Keyboard:**
 
@@ -140,27 +155,26 @@ Dependencies, graph and gates: M5 plan.
   | `n` | New issue |
 
 ### 4.2 Detail pane (split pane; drawer below a width breakpoint)
-- **Header:** ID (click to copy), type, priority, status and labels, each editable inline.
-- **Actions:** ▶ Start worktree · Claim · Status · Priority · Close… (reason required) · ⋯ (defer/undefer, reopen, delete with confirmation, copy ID, open full graph).
+- **Header:** ID (click to copy), type, priority, status and labels. **M2 renders these read-only; inline editing is M3/M4.**
+- **Actions (M3/M4):** ▶ Start worktree · Claim · Status · Priority · Close… (reason required) · ⋯ (defer/undefer, reopen, delete with confirmation, copy ID, open full graph). M2 has no actions row.
   - bd refuses to close an issue with open blockers (`cannot close …: blocked by open issues`). The M4 plan adds `force` to close so the UI can offer 'Close anyway' (`--force`).
-- **Blocked callout:**
-  - Lists each open blocker with Open and "Start blocker" buttons.
-  - Lists open gates blocking the issue (for example "Waiting on gate: human"). Only `human` gates get a Resolve button; timer, gh:run, gh:pr and bead gates are shown read-only with their await target.
-  - Shows the merge-slot holder, read-only.
-- **Mini dependency graph:** parent, blockers and dependents, one level each way. Clicking a node opens that issue.
-- **Text sections:** description, design, acceptance criteria and notes. Rendered as markdown, collapsible, editable, and saved through `update`.
-- **Relations panel:** add or remove any dependency type (§3.2), with ID autocomplete. "Mark as duplicate of…" uses `bd duplicate`.
-- **Comments:** list and composer.
-- **Linked worktrees:** each with its agent status badge.
+- **Blocked callout:** M2 lists each open blocker (from the grouped relations below) with only an Open button.
+  - "Start blocker" is M3 (needs Start worktree).
+  - **Gates and the merge-slot holder are M4 — needs bd commands and contract fields M1 does not have.** Listing open gates (for example "Waiting on gate: human") with a Resolve button for `human` gates, and showing the merge-slot holder read-only, are not implemented in M2.
+- **Mini dependency graph:** **M2 renders this as grouped relation lists, not a graph** — Parent, Blocked by, Blocks, Children, Related (`beads-detail-relations.ts`'s `groupBeadsRelations`), each row opening that issue on click. The visual node graph with one level each way is a later milestone.
+- **Text sections:** description, design, acceptance criteria and notes. Rendered as markdown, collapsible. **M2 is read-only; editing and saving through `update` is M3/M4.**
+- **Relations panel:** add or remove any dependency type (§3.2), with ID autocomplete, and "Mark as duplicate of…" via `bd duplicate`, are **M5** (§11) — M2 only displays the grouped relation lists above.
+- **Comments:** **M2 shows the list only; the composer (adding a comment) is M4.**
+- **Linked worktrees (M3):** each with its agent status badge. Not shown in M2.
 
 ### 4.3 Dialogs and views
 - **New issue:** title, type, priority, parent, labels, description, and optional blocked-by. Saved with one `bd create` call (it accepts parent, labels and dependencies directly).
 - **Full dependency graph:** from `bd graph --json`, opened in a modal.
-- **Settings card:**
-  - bd version and status, and the actor
-  - auto-claim on start (default on)
-  - poll intervals
-  - per-repo beads availability
+- **Settings card:** M2 ships install/initialize guidance (`BeadsSetupSteps` in `TaskSourceSimpleSetup.tsx`) plus the show-in-Tasks toggle. Not in M2, and not planned before the milestone noted:
+  - the actor setting — **M3**
+  - auto-claim on start — **M3** (needs Start worktree, §5.1)
+  - poll intervals — **fixed at 5 s visible / 60 s hidden in M2** (`VISIBLE_POLL_MS` / `HIDDEN_POLL_MS` in `use-beads-page-state.ts`), not user-configurable
+  - bd version/status and per-repo beads availability are **not in the global settings card** at all; M2 surfaces them in the per-repo setup card on the Beads tab itself (`BeadsSetupCard.tsx`)
 
 ## 5. Agent workflow
 
@@ -258,7 +272,7 @@ Dependencies, graph and gates: M5 plan.
 | M1 | Backend | §3 modules with unit and integration tests; local, SSH and runtime paths work; 3k-issue performance measured |
 | M2 | Read UI | Source tab, presets, filters, tree and flat list, split detail, mini graph, settings card |
 | M3 | Start worktree | §5.1, §5.2 and `--beads-issue`; end-to-end test green; **upstream PR opened (M1–M3)** |
-| M4 | Editing | Create dialog, inline fields, text sections, comments, close/defer/reopen/delete, board drag |
-| M5 | Structure | Add/remove dependencies, full graph, gates and merge-slot |
+| M4 | Editing | Create dialog, inline fields, text sections, comments, close/defer/reopen/delete, board drag, preset/board counts, gates and merge-slot |
+| M5 | Structure | Add/remove dependencies, full graph |
 | M6 | Automations | Ready-queue template, `orca-beads` skill |
 | M7 | Later | Epic across agents (orchestration), power features, mobile |
