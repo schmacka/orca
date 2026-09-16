@@ -14,6 +14,7 @@ const client = vi.hoisted(() => ({
 
 vi.mock('@/runtime/runtime-beads-client', () => client)
 
+import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import type { AppState } from '../types'
 import { createBeadsSlice } from './beads'
 import {
@@ -38,20 +39,13 @@ function details(overrides: { status?: string; assignee?: string } = {}) {
   }
 }
 
-function createTestStore() {
-  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the slice only reads `settings` and its own fields; the rest of AppState is unused in these tests.
-  return create<AppState>()((...a) => ({ settings: null, ...createBeadsSlice(...a) }) as AppState)
-}
+// Why: the slice only reads `settings.beadsActor` and its own fields, so tests pass
+// just those two rather than a full GlobalSettings fixture.
+type TestSettings = Pick<GlobalSettings, 'beadsActor' | 'beadsAutoClaim'> | null
 
-function createTestStoreWithActor(beadsActor: string) {
-  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the slice only reads `settings.beadsActor` and its own fields; the rest of GlobalSettings/AppState is unused in these tests.
-  return create<AppState>()(
-    (...a) =>
-      ({
-        settings: { beadsActor, beadsAutoClaim: true },
-        ...createBeadsSlice(...a)
-      }) as AppState
-  )
+function createTestStore(settings: TestSettings = null) {
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the slice only reads `settings` (here a partial GlobalSettings, or null) and its own fields; the rest of AppState is unused in these tests.
+  return create<AppState>()((...a) => ({ settings, ...createBeadsSlice(...a) }) as AppState)
 }
 
 function page(ids: string[]) {
@@ -172,7 +166,7 @@ describe('beads slice', () => {
   })
 
   it('claims an issue with the configured actor and refreshes the change token', async () => {
-    const store = createTestStoreWithActor('sebastian')
+    const store = createTestStore({ beadsActor: 'sebastian', beadsAutoClaim: true })
     client.beadsClaimIssue.mockResolvedValueOnce(details({ status: 'in_progress' }))
     client.beadsGetChangeToken.mockResolvedValueOnce({ ok: true, value: 'h1' })
 
@@ -199,8 +193,21 @@ describe('beads slice', () => {
     expect(client.beadsClaimIssue).toHaveBeenCalledWith(null, REPO, 'p-1', null)
   })
 
+  it('claims an issue and does not refresh the token on failure', async () => {
+    const store = createTestStore({ beadsActor: 'sebastian', beadsAutoClaim: true })
+    client.beadsClaimIssue.mockResolvedValueOnce({
+      ok: false,
+      error: { kind: 'failed', message: 'nope' }
+    })
+
+    const result = await store.getState().claimBeadsIssue(REPO, 'p-1')
+
+    expect(result).toEqual({ ok: false, error: { kind: 'failed', message: 'nope' } })
+    expect(client.beadsGetChangeToken).not.toHaveBeenCalled()
+  })
+
   it('closes an issue with a reason and does not refresh the token on failure', async () => {
-    const store = createTestStoreWithActor('sebastian')
+    const store = createTestStore({ beadsActor: 'sebastian', beadsAutoClaim: true })
     client.beadsCloseIssue.mockResolvedValueOnce({
       ok: false,
       error: { kind: 'failed', message: 'nope' }
@@ -220,7 +227,7 @@ describe('beads slice', () => {
   })
 
   it('unclaims an issue by resetting both assignee and status back to open', async () => {
-    const store = createTestStoreWithActor('sebastian')
+    const store = createTestStore({ beadsActor: 'sebastian', beadsAutoClaim: true })
     client.beadsUpdateIssue.mockResolvedValueOnce(details({ status: 'open', assignee: undefined }))
     client.beadsGetChangeToken.mockResolvedValueOnce({ ok: true, value: 'h1' })
 
