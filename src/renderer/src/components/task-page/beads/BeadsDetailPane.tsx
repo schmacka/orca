@@ -12,7 +12,7 @@ type BeadsDetailPaneProps = {
   issueId: string
   schema: BeadsSchema
   onOpenIssue: (id: string) => void
-  onStartWorktree: (issue: Pick<BeadsIssue, 'id' | 'title'>) => void
+  onStartWorktree: (issue: Pick<BeadsIssue, 'id' | 'title' | 'issueType'>) => void
 }
 
 export function BeadsDetailPane({

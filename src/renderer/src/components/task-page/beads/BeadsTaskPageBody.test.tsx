@@ -399,4 +399,57 @@ describe('BeadsTaskPageBody', () => {
       })
     )
   })
+
+  it('sends an epic source (repo + id/title) for an epic bead, so the composer can fetch its ready children', () => {
+    const readyKey = JSON.stringify({ view: 'ready', filter: {}, limit: 200 })
+    const PAGE = {
+      data: { issues: [issue('e1')], hasMore: false },
+      error: null,
+      loading: false,
+      token: 'h1'
+    }
+    installState({ data: READY, error: null, loading: false, token: null }, { [readyKey]: PAGE })
+    repoState.details.e1 = {
+      data: { issue: issue('e1'), dependencies: [], dependents: [], comments: [] },
+      error: null,
+      loading: false,
+      token: 'h1'
+    }
+    renderBody()
+    fireEvent.click(screen.getByText('Title e1'))
+    fireEvent.click(screen.getByRole('button', { name: 'Start worktree' }))
+    expect(mocks.openModal).toHaveBeenCalledWith(
+      'new-workspace-composer',
+      expect.objectContaining({
+        initialBeadsEpicSource: { repo: REPO_REF, epic: { id: 'e1', title: 'Title e1' } }
+      })
+    )
+  })
+
+  // The one the coordinator cares most about: a non-epic bead must never get an epic
+  // source, so the composer's augmentation hook never fires and the plain single-issue
+  // prompt (no "Ready children" section, no "No children are ready" line) is all it gets.
+  it('sends no epic source for a non-epic bead — the plain prompt stays plain', () => {
+    const readyKey = JSON.stringify({ view: 'ready', filter: {}, limit: 200 })
+    const PAGE = {
+      data: { issues: [issue('c1')], hasMore: false },
+      error: null,
+      loading: false,
+      token: 'h1'
+    }
+    installState({ data: READY, error: null, loading: false, token: null }, { [readyKey]: PAGE })
+    repoState.details.c1 = {
+      data: { issue: issue('c1'), dependencies: [], dependents: [], comments: [] },
+      error: null,
+      loading: false,
+      token: 'h1'
+    }
+    renderBody()
+    fireEvent.click(screen.getByText('Title c1'))
+    fireEvent.click(screen.getByRole('button', { name: 'Start worktree' }))
+    expect(mocks.openModal).toHaveBeenCalledWith(
+      'new-workspace-composer',
+      expect.objectContaining({ initialBeadsEpicSource: null })
+    )
+  })
 })

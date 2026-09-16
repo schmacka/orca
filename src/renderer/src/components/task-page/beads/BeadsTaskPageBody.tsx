@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select'
 import { translate } from '@/i18n/i18n'
 import {
+  buildBeadsEpicLinkedContextSource,
   buildBeadsLinkedItem,
   buildBeadsTaskSourceContext,
   buildBeadsWorkspaceSeed
@@ -68,12 +69,13 @@ function BeadsRepoView({ repo, onHide }: { repo: Repo; onHide: () => void }): Re
   // component (Content.tsx passes only repos/primaryRepoId/onHide) — call the pure
   // builders directly and open the composer the same way sidebar linked-item flows do.
   const handleStartWorktree = useCallback(
-    (issue: Pick<BeadsIssue, 'id' | 'title'>): void => {
+    (issue: Pick<BeadsIssue, 'id' | 'title' | 'issueType'>): void => {
       openModal('new-workspace-composer', {
         linkedWorkItem: buildBeadsLinkedItem(issue, repoRef.id),
         taskSourceContext: buildBeadsTaskSourceContext(repoRef),
         prefilledName: buildBeadsWorkspaceSeed(issue),
         initialRepoId: repoRef.id,
+        initialBeadsEpicSource: buildBeadsEpicLinkedContextSource(issue, repoRef),
         telemetrySource: 'sidebar'
       })
     },

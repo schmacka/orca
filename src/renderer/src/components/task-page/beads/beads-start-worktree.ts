@@ -8,6 +8,7 @@ import {
   getLinkedWorkItemSuggestedName,
   getLinkedWorkItemWorkspaceName
 } from '../../../../../shared/workspace-name'
+import type { BeadsEpicLinkedContextSource } from '@/lib/beads-epic-launch-context'
 import type { BeadsRepoRef } from '@/runtime/runtime-beads-client'
 
 export function buildBeadsLinkedItem(
@@ -37,6 +38,18 @@ export function buildBeadsWorkspaceSeed(issue: Pick<BeadsIssue, 'id' | 'title'>)
       beadsIdentifier: issue.id
     })?.seedName ?? getLinkedWorkItemSuggestedName(issue)
   )
+}
+
+// Why: only an epic has ready children worth fetching — gating here (not in the
+// composer) keeps an ordinary bead from ever getting the epic's empty-state line.
+export function buildBeadsEpicLinkedContextSource(
+  issue: Pick<BeadsIssue, 'id' | 'title' | 'issueType'>,
+  repo: BeadsRepoRef
+): BeadsEpicLinkedContextSource | null {
+  if (issue.issueType !== 'epic') {
+    return null
+  }
+  return { repo, epic: { id: issue.id, title: issue.title } }
 }
 
 // Why: modeled on getTaskPageRepoSourceContext, but BeadsRepoRef carries none of the

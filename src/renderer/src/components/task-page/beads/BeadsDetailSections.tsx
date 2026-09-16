@@ -21,7 +21,7 @@ type SectionsProps = {
   details: BeadsIssueDetails
   schema: BeadsSchema
   onOpenIssue: (id: string) => void
-  onStartWorktree: (issue: Pick<BeadsIssue, 'id' | 'title'>) => void
+  onStartWorktree: (issue: Pick<BeadsIssue, 'id' | 'title' | 'issueType'>) => void
 }
 
 function RelationRow({

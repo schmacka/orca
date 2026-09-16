@@ -23,7 +23,7 @@ type BeadsListPaneProps = {
   onToggleKey: (key: string, expand: boolean) => void
   onOpenKey: (key: string) => void
   onLoadMore: () => void
-  onStartWorktree: (issue: Pick<BeadsIssue, 'id' | 'title'>) => void
+  onStartWorktree: (issue: Pick<BeadsIssue, 'id' | 'title' | 'issueType'>) => void
 }
 
 export function BeadsListPane(props: BeadsListPaneProps): React.JSX.Element {

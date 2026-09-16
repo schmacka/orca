@@ -23,7 +23,7 @@ type BeadsIssueRowProps = {
   current: boolean
   onSelect: (key: string) => void
   onToggle: (key: string, expand: boolean) => void
-  onStartWorktree: (issue: Pick<BeadsIssue, 'id' | 'title'>) => void
+  onStartWorktree: (issue: Pick<BeadsIssue, 'id' | 'title' | 'issueType'>) => void
 }
 
 export function BeadsIssueRow({

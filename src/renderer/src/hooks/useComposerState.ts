@@ -1,4 +1,6 @@
 import type { RefObject } from 'react'
+import { useBeadsEpicContextAugmentation } from './composer-state/beads-epic-context-augmentation'
+import type { BeadsEpicLinkedContextSource } from '@/lib/beads-epic-launch-context'
 import {
   getLinkedWorkItemSuggestedName,
   getLinkedWorkItemWorkspaceName,
@@ -36,6 +38,9 @@ export type UseComposerStateOptions = {
   initialName?: string
   initialPrompt?: string
   initialLinkedWorkItem?: LinkedWorkItemSummary | null
+  // Why: separate from initialLinkedWorkItem — this is a fetch instruction ("this
+  // bead is an epic, look up its ready children"), not linked-item data itself.
+  initialBeadsEpicSource?: BeadsEpicLinkedContextSource | null
   initialGitHubWorkItem?: GitHubWorkItem | null
   initialTaskSourceContext?: TaskSourceContext | null
   initialWorkspaceStatus?: WorkspaceStatus
@@ -208,6 +213,11 @@ const COMPOSER_DECISIONS: ComposerDecisions = {
 
 export function useComposerState(options: UseComposerStateOptions): UseComposerStateResult {
   const target = useComposerTargetState(options, COMPOSER_DECISIONS)
+  useBeadsEpicContextAugmentation({
+    initialBeadsEpicSource: options.initialBeadsEpicSource ?? null,
+    settings: target.composerTargetStore.settings,
+    setLinkedWorkItem: target.sourceContextState.setLinkedWorkItem
+  })
   const external = useComposerExternalSync(target)
   const source = useComposerSourceState(target, external)
   const submit = useComposerSubmitOrchestration(target, external, source)
