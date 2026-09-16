@@ -2,6 +2,8 @@
 
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
+import type { BeadsResult, BeadsIssuePage } from '../../../../shared/beads/beads-contract'
+import type { BeadsIssue } from '../../../../shared/beads/beads-issue-types'
 import type { BeadsRepoRef } from '@/runtime/runtime-beads-client'
 import type { LinkedWorkItemSummary } from '@/lib/new-workspace'
 import {
@@ -18,6 +20,13 @@ const REPO: BeadsRepoRef = {
 }
 
 type SetLinkedWorkItemMock = Mock<BeadsEpicContextAugmentationInput['setLinkedWorkItem']>
+
+// Why: pin deferred() gates below to this — the real success shape of the mocked
+// listIssues call — rather than a hand-shaped object literal. An unpinned `deferred<T>()`
+// call left `issues` to infer as `unknown[]` (the widening trap hiding inside a generic
+// instead of at a call site), which no longer assigns to the now-typed mock's
+// `BeadsIssue[]`.
+type BeadsListIssuesSuccess = Extract<BeadsResult<BeadsIssuePage>, { ok: true }>
 
 // Why: reads the functional updater a setLinkedWorkItem call was given and invokes it —
 // a properly-typed helper instead of an `as` cast at each call site. Throws (rather than
@@ -45,11 +54,25 @@ function deferred<T>() {
   return { promise, resolve }
 }
 
-// Why: not `Pick<...>` from BeadsIssue's full type — the fetch path only ever reads
-// id/title off the returned issues, so a minimal fixture keeps the test honest about
-// what buildBeadsEpicPromptBlock actually consumes.
-function readyChild(id: string, title: string) {
-  return { id, title }
+// Why: annotate the return type — the mocked listIssues result is now typed as the
+// real BeadsResult<BeadsIssuePage>, whose issues are BeadsIssue[], so a fixture with
+// only id/title would widen and fail to assign (the same trap noted on BeadsListIssuesSuccess above).
+function readyChild(id: string, title: string): BeadsIssue {
+  return {
+    id,
+    title,
+    status: 'open',
+    priority: 2,
+    issueType: 'task',
+    labels: [],
+    createdAt: '',
+    updatedAt: '',
+    dependencyCount: 0,
+    dependentCount: 0,
+    commentCount: 0,
+    blockedBy: [],
+    dependencyEdges: []
+  }
 }
 
 beforeEach(() => {
@@ -63,7 +86,7 @@ afterEach(() => {
 
 describe('useBeadsEpicContextAugmentation', () => {
   it('carries the fetched epic block into the linked item as linkedContext — the block reaching the composer, not just the string builder', async () => {
-    const gate = deferred<{ ok: true; value: { issues: unknown[]; hasMore: boolean } }>()
+    const gate = deferred<BeadsListIssuesSuccess>()
     beadsApi.listIssues.mockReturnValue(gate.promise)
     const setLinkedWorkItem: SetLinkedWorkItemMock = vi.fn()
 
@@ -145,7 +168,7 @@ describe('useBeadsEpicContextAugmentation', () => {
   })
 
   it('drops a response for an epic the composer no longer points at', async () => {
-    const gate = deferred<{ ok: true; value: { issues: unknown[]; hasMore: boolean } }>()
+    const gate = deferred<BeadsListIssuesSuccess>()
     beadsApi.listIssues.mockReturnValue(gate.promise)
     const setLinkedWorkItem: SetLinkedWorkItemMock = vi.fn()
 
@@ -174,8 +197,8 @@ describe('useBeadsEpicContextAugmentation', () => {
   })
 
   it('retries after a settings change interrupts an in-flight fetch, instead of silently dropping it', async () => {
-    const first = deferred<{ ok: true; value: { issues: unknown[]; hasMore: boolean } }>()
-    const second = deferred<{ ok: true; value: { issues: unknown[]; hasMore: boolean } }>()
+    const first = deferred<BeadsListIssuesSuccess>()
+    const second = deferred<BeadsListIssuesSuccess>()
     beadsApi.listIssues.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise)
     const setLinkedWorkItem: SetLinkedWorkItemMock = vi.fn()
     const source = { repo: REPO, epic: { id: 'cwf', title: 'Story evaluation kit' } }
