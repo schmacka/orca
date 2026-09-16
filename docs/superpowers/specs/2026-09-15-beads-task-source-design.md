@@ -184,24 +184,26 @@ Dependencies and the full graph: M5 plan. Gates and the merge-slot holder: M4 pl
 1. **Composer:** opens the existing new-workspace composer, pre-filled with:
    - the name `<id>-<title-slug>`
    - your default agent and base branch
-   - `linkedWorkItem {provider:'beads', beadsId, title}` and `linkedTaskSourceContext`, using only the generic fields, as Jira does
+   - a `WorkspaceLinkedItem` (`buildBeadsLinkedItem`, `task-page/beads/beads-start-worktree.ts`): `{provider:'beads', type:'issue', number:0, title:'<id> <title>', url:'bd://<id>', beadsIdentifier:'<id>', repoId}`. **Link shape:** the `url` is a synthetic `bd://<id>` with **no repo segment**; `beadsIdentifier` is the identity a linked bead is matched on everywhere (disposition, auto-claim, CLI), and `repoId` is a separate first-class field on the record, not encoded in the URL.
 2. **Create:** the worktree is created. Saving never waits on a bd lookup (fixes #14013's review finding 1).
-3. **Claim:** only if creation succeeded and auto-claim is on, `claim` runs with the configured actor. The Orca board status becomes in-progress. A failed claim shows a non-blocking warning, and the worktree stays.
-4. **Prompt:** the launch block from `linked-work-item-context.ts`:
+3. **Claim:** only if creation succeeded and auto-claim is on (`beadsAutoClaim`, default true — §4.3 settings), `claim` runs with the configured actor (`beadsActor`). The Orca board status becomes in-progress. A failed claim shows a non-blocking warning, and the worktree stays — a failed claim never undoes a successful create (`beads-worktree-auto-claim.ts`).
+4. **Prompt:** the launch block from `linked-work-item-context.ts` / `beads-launch-context.ts`:
    ```
    Linked Beads issue: <id> — <title>
    Read it with `bd show <id>` (run `bd prime` for workflow context).
    ```
-   It can be overridden per repo with the existing `issueCommand` template (`orca.yaml` / `.orca/issue-command`, placeholder `{{issue}}`).
-5. **Starting on an epic:** creates one worktree whose prompt lists the epic's ready child IDs and titles.
+   It is delivered to the agent as a **draft** (bracketed-paste into the terminal's input buffer, not auto-submitted) via the same generic provider-draft path Linear uses (`getLaunchableWorkItemDraftContent` / `resolveQuickCreateLinkedWorkItemPrompt`, `linked-work-item-context.ts`).
+   The `issueCommand` override (`orca.yaml` / `.orca/issue-command`, placeholder `{{issue}}`) is **not available for beads**: `canUseIssueCommandForLinkedItemProvider` (`new-workspace.ts:43-47`) admits only `'github'` and `'gitlab'`. That gate excludes Jira and Linear the same way, so this is a pre-existing limitation of the gate, not a beads-specific regression.
+5. **Starting on an epic:** creates one worktree whose prompt lists the epic's ready child IDs and titles, fetched after the composer is already open (`useBeadsEpicContextAugmentation` → `fetchBeadsEpicLinkedContext`, `beads-epic-launch-context.ts`) so opening the composer never waits on bd; a failed or empty fetch leaves the plain single-issue prompt in place.
 
 ### 5.2 Lifecycle
-- **Status badges:** the tree, list and detail views show linked worktrees and the agent state (running, waiting, done).
-- **Removing or archiving a worktree whose bead is still open** opens a prompt: **Close with reason** · **Unclaim (back to open)** · **Leave as is**.
+- **Status badges:** the tree, list and detail views show linked worktrees and the agent state (running, waiting, done). **Deferred** (orca-q11.12): no existing task-source row (Linear, Jira, GitHub) renders a per-row agent-status badge today, so this is a new UI surface for Orca generally, not beads-specific parity work.
+- **Removing a worktree whose bead is still open** opens a prompt (`BeadsWorktreeDisposition.tsx` / `use-beads-disposition.ts`): **Close with reason** · **Unclaim (back to open)** · **Leave as is** (default). It is wired into the three interactive delete-dialog paths — normal delete, force delete, and lineage delete-all (`DeleteWorktreeDialog.tsx`, `delete-worktree-dialog-force-delete.ts`, `delete-worktree-lineage-delete-all.ts`) — and `skipDeleteWorktreeConfirm` is overridden (the dialog always opens) whenever the worktree has a linked bead (`hasLinkedBeadsWorkItem`, `delete-worktree-flow.ts`).
+  - **Not covered by those three paths:** sidebar batch cleanup, the CLI `orca worktree rm`, and archiving — tracked as orca-q11.11. Two gaps found in review of the three shipped paths are tracked separately: the force-delete **toast** retry path can leave a bead open (orca-7aj), and forgetting a disconnected SSH workspace skips disposition entirely (orca-hfw).
 - Orca never closes a bead without asking.
 
 ### 5.3 CLI and skill
-- **`orca worktree create/set --beads-issue <id|null>`** mirrors `--linear-issue`. It builds the same `linkedWorkItem` and context, and `null` clears the link on `set`.
+- **`orca worktree create/set --beads-issue <id|null>`** shipped on both subcommands (`getOptionalBeadsIssueLinkFlag`, `worktree-beads-issue-link.ts`; wired in `worktree.ts`). It mirrors `--linear-issue`'s flag shape, and `null` clears the link on `set`. It builds the same link shape as §5.1 (`bd://<id>`, `beadsIdentifier`) but sets `title: id` **with no `bd` lookup** — the CLI never fetches the bead's title, so the id stands in for it. **Deferred** (orca-q11.13): resolving the real title would need a synchronous `bd show` round trip inside the CLI create/set handler, adding latency and a new failure mode to a command path that otherwise never touches bd.
 - **Bundled `orca-beads` skill guide** (`skill-guides/orca-beads.md` plus a stub) covers:
   - linking a worktree
   - spinning off discovered work (`bd create --deps discovered-from:<id>` + `orca worktree create --beads-issue`)
@@ -271,7 +273,7 @@ Dependencies and the full graph: M5 plan. Gates and the merge-slot holder: M4 pl
 | M0 | Fork setup | Fork builds in dev; packaging commit produces "Orca Beads" next to official Orca; fork CI green |
 | M1 | Backend | §3 modules with unit and integration tests; local, SSH and runtime paths work; 3k-issue performance measured |
 | M2 | Read UI | Source tab, presets, filters, tree and flat list, split detail, mini graph, settings card |
-| M3 | Start worktree | §5.1, §5.2 and `--beads-issue`; end-to-end test green; **upstream PR opened (M1–M3)** |
+| M3 | Start worktree | §5.1, §5.2 and `--beads-issue` shipped and gate-clean; end-to-end test green (`tests/e2e/beads-start-worktree.spec.ts`). Deferred and filed as beads: batch/CLI-rm/archive disposition (orca-q11.11), per-row agent-status badges (orca-q11.12), `--beads-issue` title resolution (orca-q11.13); known gaps orca-7aj, orca-hfw, orca-7h0, orca-ztv, orca-3sg, orca-ar9, orca-h17. **Upstream PR opened (M1–M3)** is still outstanding — an outward-facing decision left to a human, not planned as bead work |
 | M4 | Editing | Create dialog, inline fields, text sections, comments, close/defer/reopen/delete, board drag, preset/board counts, gates and merge-slot |
 | M5 | Structure | Add/remove dependencies, full graph |
 | M6 | Automations | Ready-queue template, `orca-beads` skill |
