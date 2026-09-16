@@ -16955,7 +16955,26 @@
           "expandRow": "Expand {{id}}",
           "blockedCount": "Blocked by {{count}}",
           "listLabel": "Beads issues",
-          "loadMore": "Load more"
+          "loadMore": "Load more",
+          "presetReady": "Ready",
+          "presetInProgress": "In progress",
+          "presetBlocked": "Blocked",
+          "presetOpen": "All open",
+          "presetClosed": "Closed",
+          "filterUnavailable": "Not available for this view",
+          "treeView": "Tree view",
+          "flatView": "Flat view",
+          "refresh": "Refresh",
+          "searchPlaceholder": "Search beads",
+          "filterType": "Type",
+          "filterAny": "Any",
+          "filterPriority": "Priority",
+          "filterEpic": "Epic",
+          "filterLabels": "Labels",
+          "filterLabelsHint": "Issues must have all selected labels",
+          "filterAssignee": "Assignee",
+          "clearFilters": "Clear filters",
+          "searchOverridesPreset": "Search looks at every issue and ignores the preset and epic filter."
         }
       }
     },
