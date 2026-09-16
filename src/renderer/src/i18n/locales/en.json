@@ -6300,7 +6300,8 @@
         "beadsDispositionClose": "Close with reason",
         "beadsDispositionUnclaim": "Unclaim (back to open)",
         "beadsDispositionLeave": "Leave as is",
-        "beadsDispositionLegend": "What should happen to the linked bead?",
+        "beadsDispositionLegend": "What should happen to {{worktreeLabel}}'s linked bead?",
+        "beadsDispositionChecking": "Checking linked bead…",
         "beadsDispositionReasonLabel": "Reason",
         "beadsDispositionReasonPlaceholder": "Why is this bead closing?",
         "beadsDispositionAfterDeleteFailed": "Could not update the linked bead"

@@ -142,6 +142,7 @@ const beadsDispositionMock = vi.hoisted(() =>
   vi.fn<
     () => {
       needed: boolean
+      pending: boolean
       disposition: 'close' | 'unclaim' | 'leave'
       setDisposition: (disposition: 'close' | 'unclaim' | 'leave') => void
       reason: string
@@ -222,6 +223,7 @@ describe('DeleteWorktreeDialog lineage copy', () => {
     vi.mocked(runWorktreeDeletesInParallel).mockResolvedValue([])
     beadsDispositionMock.mockReturnValue({
       needed: false,
+      pending: false,
       disposition: 'leave',
       setDisposition: vi.fn(),
       reason: '',
@@ -520,6 +522,7 @@ describe('DeleteWorktreeDialog lineage copy', () => {
       mocks.state.allWorktrees.mockReturnValue([workspace])
       beadsDispositionMock.mockReturnValue({
         needed: true,
+        pending: false,
         disposition: 'close',
         setDisposition: vi.fn(),
         reason: '',
@@ -537,6 +540,81 @@ describe('DeleteWorktreeDialog lineage copy', () => {
       expect(deleteButton.disabled).toBe(true)
     })
 
+    // Regression coverage for the confirm-before-bd-answers race: the delete
+    // button must stay disabled for the whole in-flight window, not just once
+    // a disposition turns out to be needed.
+    it('disables the confirm button while the linked bead status is still in flight', async () => {
+      const workspace = makeWorktree('Workspace', '/workspaces/workspace')
+      mocks.state.modalData = { worktreeId: workspace.id }
+      mocks.state.allWorktrees.mockReturnValue([workspace])
+      beadsDispositionMock.mockReturnValue({
+        needed: false,
+        pending: true,
+        disposition: 'leave',
+        setDisposition: vi.fn(),
+        reason: '',
+        setReason: vi.fn(),
+        canSubmit: true,
+        run: vi.fn().mockResolvedValue(null)
+      })
+
+      const { default: DeleteWorktreeDialog } = await import('./DeleteWorktreeDialog')
+      renderToStaticMarkup(<DeleteWorktreeDialog />)
+
+      const deleteButton = requireButton(
+        mocks.buttonProps.find((props) => props.variant === 'destructive')
+      )
+      expect(deleteButton.disabled).toBe(true)
+    })
+
+    it('enables the confirm button once the linked bead resolves to data', async () => {
+      const workspace = makeWorktree('Workspace', '/workspaces/workspace')
+      mocks.state.modalData = { worktreeId: workspace.id }
+      mocks.state.allWorktrees.mockReturnValue([workspace])
+      beadsDispositionMock.mockReturnValue({
+        needed: true,
+        pending: false,
+        disposition: 'leave',
+        setDisposition: vi.fn(),
+        reason: '',
+        setReason: vi.fn(),
+        canSubmit: true,
+        run: vi.fn().mockResolvedValue(null)
+      })
+
+      const { default: DeleteWorktreeDialog } = await import('./DeleteWorktreeDialog')
+      renderToStaticMarkup(<DeleteWorktreeDialog />)
+
+      const deleteButton = requireButton(
+        mocks.buttonProps.find((props) => props.variant === 'destructive')
+      )
+      expect(deleteButton.disabled).toBe(false)
+    })
+
+    it('enables the confirm button once the linked bead fetch errors, never blocking delete forever', async () => {
+      const workspace = makeWorktree('Workspace', '/workspaces/workspace')
+      mocks.state.modalData = { worktreeId: workspace.id }
+      mocks.state.allWorktrees.mockReturnValue([workspace])
+      beadsDispositionMock.mockReturnValue({
+        needed: false,
+        pending: false,
+        disposition: 'leave',
+        setDisposition: vi.fn(),
+        reason: '',
+        setReason: vi.fn(),
+        canSubmit: true,
+        run: vi.fn().mockResolvedValue(null)
+      })
+
+      const { default: DeleteWorktreeDialog } = await import('./DeleteWorktreeDialog')
+      renderToStaticMarkup(<DeleteWorktreeDialog />)
+
+      const deleteButton = requireButton(
+        mocks.buttonProps.find((props) => props.variant === 'destructive')
+      )
+      expect(deleteButton.disabled).toBe(false)
+    })
+
     it('runs the beads disposition after a successful normal delete', async () => {
       const workspace = makeWorktree('Workspace', '/workspaces/workspace')
       mocks.state.modalData = {
@@ -547,6 +625,7 @@ describe('DeleteWorktreeDialog lineage copy', () => {
       const run = vi.fn().mockResolvedValue(null)
       beadsDispositionMock.mockReturnValue({
         needed: true,
+        pending: false,
         disposition: 'unclaim',
         setDisposition: vi.fn(),
         reason: '',
@@ -578,6 +657,7 @@ describe('DeleteWorktreeDialog lineage copy', () => {
       const run = vi.fn().mockResolvedValue(null)
       beadsDispositionMock.mockReturnValue({
         needed: true,
+        pending: false,
         disposition: 'unclaim',
         setDisposition: vi.fn(),
         reason: '',
@@ -616,6 +696,7 @@ describe('DeleteWorktreeDialog lineage copy', () => {
       const run = vi.fn().mockResolvedValue(null)
       beadsDispositionMock.mockReturnValue({
         needed: true,
+        pending: false,
         disposition: 'unclaim',
         setDisposition: vi.fn(),
         reason: '',
@@ -650,6 +731,7 @@ describe('DeleteWorktreeDialog lineage copy', () => {
       const run = vi.fn().mockResolvedValue(null)
       beadsDispositionMock.mockReturnValue({
         needed: true,
+        pending: false,
         disposition: 'unclaim',
         setDisposition: vi.fn(),
         reason: '',

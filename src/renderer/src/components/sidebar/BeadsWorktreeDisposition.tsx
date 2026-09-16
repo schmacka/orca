@@ -22,12 +22,22 @@ function dispositionLabel(value: BeadsDisposition): string {
 
 export function BeadsWorktreeDisposition({
   needed,
+  pending = false,
+  worktreeLabel = '',
   disposition,
   onDispositionChange,
   reason,
   onReasonChange
 }: {
   needed: boolean
+  // Why: the linked bead's status fetch is still in flight — show a
+  // placeholder and let the caller keep the confirm button disabled instead
+  // of rendering nothing, which is what let a fast "Delete, Enter" slip past
+  // an unseen disposition prompt.
+  pending?: boolean
+  // Why: named so lineage/batch deletes don't read as "the linked bead" when
+  // several worktrees are on screen — this disposition only ever covers one.
+  worktreeLabel?: string
   disposition: BeadsDisposition
   onDispositionChange: (disposition: BeadsDisposition) => void
   reason: string
@@ -35,6 +45,14 @@ export function BeadsWorktreeDisposition({
 }): JSX.Element | null {
   const groupName = useId()
   const reasonId = useId()
+
+  if (pending) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        {translate('auto.components.sidebar.beadsDispositionChecking', 'Checking linked bead…')}
+      </p>
+    )
+  }
 
   if (!needed) {
     return null
@@ -45,7 +63,8 @@ export function BeadsWorktreeDisposition({
       <legend className="text-sm font-medium">
         {translate(
           'auto.components.sidebar.beadsDispositionLegend',
-          'What should happen to the linked bead?'
+          "What should happen to {{worktreeLabel}}'s linked bead?",
+          { worktreeLabel }
         )}
       </legend>
       <div className="space-y-1.5">

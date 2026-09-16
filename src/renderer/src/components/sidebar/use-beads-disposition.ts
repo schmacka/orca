@@ -9,6 +9,7 @@ import type { BeadsResult } from '../../../../shared/beads/beads-contract'
 import type { BeadsIssueDetails } from '../../../../shared/beads/beads-issue-types'
 import {
   beadsDispositionNeeded,
+  hasLinkedBeadsWorkItem,
   runBeadsDisposition,
   type BeadsDisposition
 } from './beads-worktree-disposition'
@@ -17,6 +18,10 @@ export type BeadsDispositionWorktree = Pick<Worktree, 'repoId' | 'linkedWorkItem
 
 export type BeadsDispositionState = {
   needed: boolean
+  // Why: true only while a linked bead's status is still in flight — the
+  // confirm button must stay disabled for this window, not just when a
+  // disposition turns out to be needed once the fetch settles.
+  pending: boolean
   disposition: BeadsDisposition
   setDisposition: (disposition: BeadsDisposition) => void
   reason: string
@@ -84,6 +89,15 @@ export function useBeadsDisposition({
     : null
 
   const needed = beadsDispositionNeeded({ linkedWorkItem, beadStatusCategory })
+  // Why: settled means the fetch produced data OR an error, not merely
+  // "loading is false" — that also describes the single render before the
+  // effect above has dispatched the fetch, which is the exact window the
+  // race this guards against exploits. An unresolved repo can never fetch, so
+  // it can never block delete forever.
+  const pending =
+    hasLinkedBeadsWorkItem(linkedWorkItem) &&
+    repoRef !== null &&
+    (entry === undefined || (entry.data === null && entry.error === null))
   const canSubmit = disposition !== 'close' || reason.trim() !== ''
 
   const run = async (): Promise<BeadsResult<BeadsIssueDetails> | null> => {
@@ -93,5 +107,5 @@ export function useBeadsDisposition({
     return runBeadsDisposition({ disposition, repo: repoRef, issueId, reason })
   }
 
-  return { needed, disposition, setDisposition, reason, setReason, canSubmit, run }
+  return { needed, pending, disposition, setDisposition, reason, setReason, canSubmit, run }
 }

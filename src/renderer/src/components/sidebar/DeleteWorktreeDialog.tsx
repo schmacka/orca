@@ -393,6 +393,8 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
 
         <BeadsWorktreeDisposition
           needed={beadsDisposition.needed}
+          pending={beadsDisposition.pending}
+          worktreeLabel={worktree?.displayName ?? ''}
           disposition={beadsDisposition.disposition}
           onDispositionChange={beadsDisposition.setDisposition}
           reason={beadsDisposition.reason}
@@ -414,7 +416,9 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
             worktreeCount={worktrees.length}
             canDeleteAllLineage={canDeleteAllLineage}
             lineageDeleteTargetCount={lineageDelete.deleteAllTargets.length}
-            disableConfirm={beadsDisposition.needed && !beadsDisposition.canSubmit}
+            disableConfirm={
+              beadsDisposition.pending || (beadsDisposition.needed && !beadsDisposition.canSubmit)
+            }
             onCancel={() => handleOpenChange(false)}
             onForceDelete={() => handleDelete(true)}
             onDelete={canDeleteAllLineage ? handleDeleteAll : () => handleDelete(false)}

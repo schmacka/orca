@@ -200,6 +200,78 @@ describe('useBeadsDisposition', () => {
     expect(mocks.unclaimBeadsIssue).not.toHaveBeenCalled()
     expect(mocks.closeBeadsIssue).not.toHaveBeenCalled()
   })
+
+  // Regression coverage for the confirm-before-bd-answers race: the confirm
+  // button reads `pending`, not `needed`, while the detail fetch is in flight.
+  describe('pending (bead detail fetch in flight)', () => {
+    it('is pending before the detail fetch has produced data or an error', () => {
+      mocks.state.beadsRepos = {
+        'repo-1': {
+          status: { data: null, error: null, loading: false, token: null },
+          schema: { data: null, error: null, loading: false, token: null },
+          changeToken: null,
+          pollError: null,
+          lists: {},
+          details: { 'cwf.3': { data: null, error: null, loading: true, token: null } }
+        }
+      }
+      const { result } = renderHook(() =>
+        useBeadsDisposition({ isOpen: true, worktree: BEADS_WORKTREE, repoMap: REPO_MAP })
+      )
+      expect(result.current.pending).toBe(true)
+    })
+
+    it('is pending before the fetch has even started (the effect has not run yet)', () => {
+      const { result } = renderHook(() =>
+        useBeadsDisposition({ isOpen: true, worktree: BEADS_WORKTREE, repoMap: REPO_MAP })
+      )
+      expect(result.current.pending).toBe(true)
+    })
+
+    it('settles once the detail fetch resolves to data', () => {
+      withResolvedIssue('open')
+      const { result } = renderHook(() =>
+        useBeadsDisposition({ isOpen: true, worktree: BEADS_WORKTREE, repoMap: REPO_MAP })
+      )
+      expect(result.current.pending).toBe(false)
+    })
+
+    it('settles on error too, so an unreachable bd never blocks delete forever', () => {
+      mocks.state.beadsRepos = {
+        'repo-1': {
+          status: { data: null, error: null, loading: false, token: null },
+          schema: { data: null, error: null, loading: false, token: null },
+          changeToken: null,
+          pollError: null,
+          lists: {},
+          details: {
+            'cwf.3': {
+              data: null,
+              error: { kind: 'host-offline', message: 'bd unreachable' },
+              loading: false,
+              token: null
+            }
+          }
+        }
+      }
+      const { result } = renderHook(() =>
+        useBeadsDisposition({ isOpen: true, worktree: BEADS_WORKTREE, repoMap: REPO_MAP })
+      )
+      expect(result.current.pending).toBe(false)
+      expect(result.current.needed).toBe(false)
+    })
+
+    it('is never pending for a worktree with no linked bead', () => {
+      const { result } = renderHook(() =>
+        useBeadsDisposition({
+          isOpen: true,
+          worktree: { repoId: 'repo-1', linkedWorkItem: null },
+          repoMap: REPO_MAP
+        })
+      )
+      expect(result.current.pending).toBe(false)
+    })
+  })
 })
 
 describe('BeadsWorktreeDisposition', () => {
@@ -214,6 +286,37 @@ describe('BeadsWorktreeDisposition', () => {
       />
     )
     expect(container).toBeEmptyDOMElement()
+  })
+
+  it('shows a checking placeholder while pending, instead of the fieldset', () => {
+    render(
+      <BeadsWorktreeDisposition
+        needed={false}
+        pending
+        disposition="leave"
+        onDispositionChange={vi.fn()}
+        reason=""
+        onReasonChange={vi.fn()}
+      />
+    )
+    expect(screen.getByText('Checking linked bead…')).toBeInTheDocument()
+    expect(screen.queryByRole('group')).not.toBeInTheDocument()
+  })
+
+  it('names which worktree the disposition is for', () => {
+    render(
+      <BeadsWorktreeDisposition
+        needed
+        worktreeLabel="feature-branch"
+        disposition="leave"
+        onDispositionChange={vi.fn()}
+        reason=""
+        onReasonChange={vi.fn()}
+      />
+    )
+    expect(
+      screen.getByText("What should happen to feature-branch's linked bead?")
+    ).toBeInTheDocument()
   })
 
   it('selects Leave as is by default', () => {
