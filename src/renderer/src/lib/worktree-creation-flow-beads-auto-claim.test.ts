@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import type {
   PendingWorktreeCreation,
   WorktreeCreationRequest
 } from '@/lib/pending-worktree-creation'
+import type { WorkspaceLinkedItem } from '../../../shared/worktree/types'
 
 // Regression guard: autoClaimBeadsWorktree is called from exactly one call
 // site (worktree-creation-flow-execute.ts:144-146). Nothing else pins that
@@ -11,12 +12,42 @@ const { autoClaimBeadsWorktreeMock } = vi.hoisted(() => ({
   autoClaimBeadsWorktreeMock: vi.fn(async () => {})
 }))
 
-const store = {
-  settings: { activeRuntimeEnvironmentId: null as string | null },
-  activeView: 'terminal' as 'terminal' | 'tasks',
-  activePendingCreationId: 'creation-1' as string | null,
+type TestActiveView = 'terminal' | 'tasks'
+type TestRepo = { id: string; connectionId: string | null }
+type TestCreatedWorktree = { id: string; repoId: string; linkedWorkItem?: WorkspaceLinkedItem }
+type TestCreateWorktreeResult = { worktree: TestCreatedWorktree }
+
+type TestStore = {
+  settings: { activeRuntimeEnvironmentId: string | null }
+  activeView: TestActiveView
+  activePendingCreationId: string | null
+  repos: TestRepo[]
+  pendingWorktreeCreations: Record<string, PendingWorktreeCreation>
+  beginPendingWorktreeCreation: (entry: PendingWorktreeCreation) => void
+  updatePendingWorktreeCreation: (
+    creationId: string,
+    patch: Partial<PendingWorktreeCreation>
+  ) => void
+  removePendingWorktreeCreation: (creationId: string) => void
+  updateWorktreeMeta: () => void
+  setActivePendingWorktreeCreation: () => void
+  setActiveView: () => void
+  setSidebarOpen: () => void
+  createWorktree: Mock<() => Promise<TestCreateWorktreeResult>>
+  setupProjectExistingFolder: () => void
+  refreshRuntimeEnvironmentStatus: () => void
+  seedNativeChatLaunchDraft: () => void
+  setTabViewMode: () => void
+  tabsByWorktree: Record<string, { id: string; launchAgent?: string }[]>
+  unifiedTabsByWorktree: Record<string, unknown>
+}
+
+const store: TestStore = {
+  settings: { activeRuntimeEnvironmentId: null },
+  activeView: 'terminal',
+  activePendingCreationId: 'creation-1',
   repos: [{ id: 'repo-1', connectionId: null }],
-  pendingWorktreeCreations: {} as Record<string, PendingWorktreeCreation>,
+  pendingWorktreeCreations: {},
   beginPendingWorktreeCreation: vi.fn((entry: PendingWorktreeCreation) => {
     store.pendingWorktreeCreations[entry.creationId] = entry
     store.activePendingCreationId = entry.creationId
@@ -36,12 +67,12 @@ const store = {
   setActivePendingWorktreeCreation: vi.fn(),
   setActiveView: vi.fn(),
   setSidebarOpen: vi.fn(),
-  createWorktree: vi.fn(() => new Promise(() => {})),
+  createWorktree: vi.fn(() => new Promise<TestCreateWorktreeResult>(() => {})),
   setupProjectExistingFolder: vi.fn(),
   refreshRuntimeEnvironmentStatus: vi.fn(),
   seedNativeChatLaunchDraft: vi.fn(),
   setTabViewMode: vi.fn(),
-  tabsByWorktree: {} as Record<string, { id: string; launchAgent?: string }[]>,
+  tabsByWorktree: {},
   unifiedTabsByWorktree: {}
 }
 
@@ -117,16 +148,16 @@ beforeEach(() => {
   store.activePendingCreationId = 'creation-1'
   store.repos = [{ id: 'repo-1', connectionId: null }]
   store.pendingWorktreeCreations = { 'creation-1': makePendingCreation(makeRequest()) }
-  store.createWorktree.mockImplementation(() => new Promise(() => {}))
+  store.createWorktree.mockImplementation(() => new Promise<TestCreateWorktreeResult>(() => {}))
   store.tabsByWorktree = {}
   store.unifiedTabsByWorktree = {}
 })
 
 describe('worktree creation auto-claim wiring', () => {
   it('auto-claims the linked bead once a beads-linked worktree is created', async () => {
-    const linkedWorkItem = {
-      provider: 'beads' as const,
-      type: 'issue' as const,
+    const linkedWorkItem: WorkspaceLinkedItem = {
+      provider: 'beads',
+      type: 'issue',
       number: 0,
       title: 'cwf.3 Wire up auto-claim',
       url: 'bd://cwf.3',
