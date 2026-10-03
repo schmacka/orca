@@ -17,6 +17,7 @@ import {
   quitAndInstall,
   setupAutoUpdater,
   showLinuxPackage,
+  type PreQuitCleanupFailureMode,
   type UpdateInstallMode
 } from '../updater'
 
@@ -34,6 +35,7 @@ export function scheduleMainWindowAutoUpdaterSetup(
   store: Store,
   options?: {
     onBeforeUpdateQuit?: () => void | Promise<void>
+    onBeforeUpdateQuitFailure?: PreQuitCleanupFailureMode
     updateInstallMode?: UpdateInstallMode
   }
 ): void {
@@ -74,6 +76,7 @@ export function scheduleMainWindowAutoUpdaterSetup(
         store.updateUI({ dismissedUpdateNudgeId: id })
       },
       getReleaseChannelOverride: () => store.getUI().releaseChannelOverride ?? null,
+      onBeforeQuitFailure: options?.onBeforeUpdateQuitFailure,
       installMode: options?.updateInstallMode
     })
     logStartupMilestone('updater-setup-done')
@@ -124,12 +127,20 @@ export function registerUpdaterHandlers(_store: Store): void {
   })
   ipcMain.handle(
     'updater:listBuilds',
-    async (_event, channel: ReleaseChannel): Promise<ReleaseBuildListResult> => {
+    async (
+      _event,
+      channel: ReleaseChannel,
+      options?: { force?: boolean }
+    ): Promise<ReleaseBuildListResult> => {
       if (!RELEASE_CHANNELS.includes(channel)) {
         return { ok: false, channel, message: `Unknown release channel "${channel}".` }
       }
       try {
-        return { ok: true, channel, builds: await listAvailableReleaseBuilds(channel) }
+        return {
+          ok: true,
+          channel,
+          builds: await listAvailableReleaseBuilds(channel, { force: options?.force === true })
+        }
       } catch (error) {
         // Why: a network/rate-limit failure is expected here; return it as data so
         // the picker can render the reason instead of rejecting the invoke.

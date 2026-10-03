@@ -66,6 +66,7 @@ export function runLocalSourceControlPlan(input: {
         args: plan.args,
         cwd,
         env: input.env,
+        commandEnv: plan.env,
         wslDistro: input.wslDistro,
         stdinMode: 'pipe',
         useCwdForNative: true
@@ -185,6 +186,7 @@ export function runLocalSourceControlPlan(input: {
           stdout,
           stderr,
           label: plan.label,
+          outputFormat: plan.outputFormat,
           emptyResultName: input.emptyResultName,
           includeStdoutDetail: operation !== 'branch-name'
         })

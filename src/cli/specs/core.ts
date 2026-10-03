@@ -1,6 +1,7 @@
 import type { CommandSpec } from '../args'
 import { GLOBAL_FLAGS } from '../args'
 import { WORKTREE_LISTING_SCOPE_NOTES } from './worktree-listing-scope-notes'
+import { WORKTREE_SET_COMMAND_SPEC } from './worktree-set'
 import { SERVE_COMMAND_SPECS } from './serve'
 import { TERMINAL_SEND_COMMAND_SPEC } from './terminal-send'
 import { TERMINAL_CLOSE_COMMAND_SPEC } from './terminal-close'
@@ -19,6 +20,9 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
     summary: 'Show app/runtime/graph readiness',
     usage: 'orca status [--json]',
     allowedFlags: [...GLOBAL_FLAGS],
+    notes: [
+      "caller.orcaSessionId is this agent's Orca session ID, as Orca resolved it, when the agent runs as an Orca session; otherwise caller is omitted."
+    ],
     examples: ['orca status', 'orca status --json']
   },
   {
@@ -90,7 +94,7 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
     path: ['worktree', 'create'],
     summary: 'Create a new Orca-managed worktree',
     usage:
-      'orca worktree create --name <name> [--repo <selector>|--project <id> [--host <host-id>]|--project-host-setup <id>] [--agent <id>] [--prompt <text>] [--setup run|skip|inherit] [--base-branch <ref>] [--issue <number>] [--linear-issue <identifier-or-url>] [--beads-issue <id>] [--comment <text>] [--parent-worktree <selector>] [--no-parent] [--run-hooks] [--activate] [--json]',
+      'orca worktree create --name <name> [--repo <selector>|--project <id> [--host <host-id>]|--project-host-setup <id>] [--agent <id>] [--prompt <text>] [--setup run|skip|inherit] [--base-branch <ref>] [--issue <number>] [--pr <number>] [--linear-issue <identifier-or-url>] [--gitlab-issue <number-or-url>] [--gitlab-mr <number-or-url>] [--beads-issue <id>] [--comment <text>] [--parent-worktree <selector>] [--no-parent] [--run-hooks] [--activate] [--json]',
     allowedFlags: [
       ...GLOBAL_FLAGS,
       'repo',
@@ -102,8 +106,11 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
       'prompt',
       'base-branch',
       'issue',
+      'pr',
       'linear-issue',
       'beads-issue',
+      'gitlab-issue',
+      'gitlab-mr',
       'comment',
       'setup',
       'parent-worktree',
@@ -125,7 +132,8 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
       'With --agent --json, read the new agent handle from result.agentTerminalHandle; older runtimes return only result.startupTerminal.handle, and may return neither for folder-based repos.',
       'Repo-defined setup hooks follow the repository setup policy; pass --setup run to force them.',
       'Pass --activate when the CLI caller intentionally wants to reveal the new worktree in the app.',
-      'Passing --run-hooks is kept as a legacy alias for --setup run and reveals the worktree.'
+      'Passing --run-hooks is kept as a legacy alias for --setup run and reveals the worktree.',
+      'Use --pr for GitHub pull requests; --gitlab-issue and --gitlab-mr write separate GitLab links. GitLab URLs must match the stored source project or remote; they cannot select a foreign project.'
     ],
     examples: [
       'orca worktree create --name agent-task --agent codex --prompt "hi" --json',
@@ -139,34 +147,7 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
       'orca worktree create --repo id:<repoId> --name independent-task --no-parent --json'
     ]
   },
-  {
-    path: ['worktree', 'set'],
-    summary: 'Update Orca metadata for a worktree',
-    usage:
-      'orca worktree set --worktree <selector> [--display-name <name>] [--issue <number|null>] [--linear-issue <identifier-or-url|null>] [--beads-issue <id|null>] [--comment <text>] [--workspace-status <id>] [--parent-worktree <selector>|--no-parent] [--json]',
-    allowedFlags: [
-      ...GLOBAL_FLAGS,
-      'worktree',
-      'display-name',
-      'issue',
-      'linear-issue',
-      'beads-issue',
-      'comment',
-      'workspace-status',
-      'parent-worktree',
-      'no-parent'
-    ],
-    notes: [
-      'Workspace status ids match the board columns (defaults: todo, in-progress, in-review, completed); custom statuses use their configured id.',
-      'Pass --linear-issue null to clear the Linear issue link.'
-    ],
-    examples: [
-      'orca worktree set --worktree active --linear-issue STA-335 --json',
-      'orca worktree set --worktree active --linear-issue null --json',
-      'orca worktree set --worktree active --beads-issue proj-42 --json',
-      'orca worktree set --worktree active --beads-issue null --json'
-    ]
-  },
+  WORKTREE_SET_COMMAND_SPEC,
   {
     path: ['worktree', 'rm'],
     // Why: agents reach for git's `remove`/`delete` verbs; accept them as
@@ -255,17 +236,20 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
     path: ['terminal', 'create'],
     summary: 'Create a terminal session in the current worktree',
     usage:
-      'orca terminal create [--worktree <selector>] [--title <name>] [--command <text>] [--focus] [--json]',
-    allowedFlags: [...GLOBAL_FLAGS, 'worktree', 'command', 'title', 'focus'],
+      'orca terminal create [--worktree <selector>] [--title <name>] [--command <text>] [--shell <shell>] [--focus] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'worktree', 'command', 'shell', 'title', 'focus'],
     notes: [
       'Creates a visible terminal tab without switching focus when possible; falls back to a background handle if the UI cannot adopt it. Pass --focus to switch to it.',
-      'Use this, not worktree create, for a fresh agent in the current checkout.'
+      'Use this, not worktree create, for a fresh agent in the current checkout.',
+      '--shell picks the shell the terminal IS on a Windows host (cmd.exe, powershell.exe, pwsh.exe, wsl.exe, bash.exe, git-bash); --command is typed into whatever shell the host started, so `--command cmd.exe` leaves a cmd running INSIDE the default shell and exiting it drops back to that shell.',
+      'A host that cannot apply --shell refuses the create rather than quietly spawning its default shell: macOS and Linux execution hosts spawn the login shell, terminals routed over SSH resolve their shell on the SSH host, a --shell that contradicts the project execution runtime (WSL vs Windows host) is refused, and an Orca host older than --shell is refused by the CLI.'
     ],
     examples: [
       'orca terminal create --json',
       'orca terminal create --worktree active --command "codex" --json',
       'orca terminal create --worktree path:/projects/myapp --title "RUNNER" --command "opencode"',
-      'orca terminal create --worktree path:/projects/myapp --command "opencode" --focus'
+      'orca terminal create --worktree path:/projects/myapp --command "opencode" --focus',
+      'orca terminal create --worktree path:C:/src/app --shell cmd.exe --json'
     ]
   },
   {

@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dialog'
 import { useAppStore } from '@/store'
 import { useAllWorktrees } from '@/store/selectors'
+import { getWorktreeDeleteErrorToShow } from './worktree-delete-error-display'
 import { getWorkspaceDeleteLineage } from './workspace-delete-lineage'
 import { DeleteWorktreeLineageNotice } from './DeleteWorktreeLineageNotice'
 import { DeleteWorktreeSkipConfirmOption } from './DeleteWorktreeSkipConfirmOption'
@@ -16,7 +17,7 @@ import { DeleteWorktreeDialogDescription } from './DeleteWorktreeDialogDescripti
 import { DeleteWorktreeTargetPreview } from './DeleteWorktreeTargetPreview'
 import { DeleteWorktreeWarningPanels } from './DeleteWorktreeWarningPanels'
 import { persistDeleteWorktreeConfirmSkipPreference } from './delete-worktree-preference-toast'
-import { getDeleteWorktreeDirtyChangeCounts } from './delete-worktree-dirty-change-counts'
+import { useDeleteWorktreeDirtyChanges } from './use-delete-worktree-dirty-changes'
 import {
   countFolderWorkspaceDeletes,
   getDeleteWorktreeDialogCopy,
@@ -163,7 +164,7 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
     ? getDeleteStateForWorktreeHost(worktree, deleteStateByWorktreeId)
     : undefined
   const isDeleting = deleteStates.some((state) => state.isDeleting)
-  const deleteError = !isBatchDelete ? (deleteState?.error ?? null) : null
+  const deleteError = !isBatchDelete ? getWorktreeDeleteErrorToShow(worktree, deleteState) : null
   const canForceDelete = !isBatchDelete && (deleteState?.canForceDelete ?? false)
   const gitStatusByWorktreeIdentity = useDeleteWorktreeStatusHydration({
     isOpen,
@@ -171,21 +172,13 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
     visibleTargets: worktrees,
     repoMap
   })
-  const dirtyChangeCountsByWorktreeId = useMemo(() => {
-    return getDeleteWorktreeDirtyChangeCounts({
-      deleteTargets,
-      deleteStateByWorktreeId,
-      gitStatusByWorktree,
-      gitStatusByWorktreeIdentity,
-      repoMap
-    })
-  }, [
-    deleteStateByWorktreeId,
+  const dirtyChanges = useDeleteWorktreeDirtyChanges({
     deleteTargets,
+    deleteStateByWorktreeId,
     gitStatusByWorktree,
     gitStatusByWorktreeIdentity,
     repoMap
-  ])
+  })
 
   if (!isOpen && dontAskAgain) {
     // Why: this checkbox is a one-shot dialog intent; reset it as soon as the
@@ -368,22 +361,26 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
           />
         </DialogHeader>
 
-        <DeleteWorktreeTargetPreview
-          isBatchDelete={isBatchDelete}
-          worktree={worktree}
-          worktrees={worktrees}
-          collisionWorktrees={allWorktrees}
-          hostLabelById={hostLabelById}
-          deleteStateByWorktreeId={deleteStateByWorktreeId}
-          dirtyChangeCountsByWorktreeId={dirtyChangeCountsByWorktreeId}
-        />
-
-        {hasLineageChildren && (
-          <DeleteWorktreeLineageNotice
-            descendants={lineageDelete.descendants}
-            dirtyChangeCountsByWorktreeId={dirtyChangeCountsByWorktreeId}
+        <div className="scrollbar-sleek max-h-[50vh] min-w-0 space-y-4 overflow-y-auto">
+          <DeleteWorktreeTargetPreview
+            isBatchDelete={isBatchDelete}
+            worktree={worktree}
+            worktrees={worktrees}
+            collisionWorktrees={allWorktrees}
+            hostLabelById={hostLabelById}
+            deleteStateByWorktreeId={deleteStateByWorktreeId}
+            dirtyChangeCountsByWorktreeId={dirtyChanges.counts}
+            dirtyChangePreviewsByWorktreeId={dirtyChanges.previews}
           />
-        )}
+
+          {hasLineageChildren && (
+            <DeleteWorktreeLineageNotice
+              descendants={lineageDelete.descendants}
+              dirtyChangeCountsByWorktreeId={dirtyChanges.counts}
+              dirtyChangePreviewsByWorktreeId={dirtyChanges.previews}
+            />
+          )}
+        </div>
 
         <DeleteWorktreeWarningPanels
           isMainWorktree={isMainWorktree}
